@@ -447,6 +447,56 @@ struct statement_t *new_statement()
 }
 
 
+struct code_t *new_code()
+{
+  struct code_t *c;
+  c = (struct code_t*) malloc(sizeof(struct code_t));
+  CHECK_MEM_ERROR(c)
+  c->type = -1;
+  c->next = NULL;
+  c->t.op_code = NULL;
+  c->t.goto_code = NULL;
+  c->t.if_code = NULL;
+  return c;
+}
+
+struct op_code_t* new_op_code(){
+  struct op_code_t* oc;
+  oc = (struct op_code_t*) malloc(sizeof(struct op_code_t));
+  CHECK_MEM_ERROR(oc);
+  oc->v1 = NULL;
+  oc->v2 = NULL;
+  oc->relop = -1;
+  return oc;
+}
+
+struct goto_code_t * new_goto_code(){
+  struct goto_code_t* gc;
+  gc = (struct goto_code_t*) malloc(sizeof(struct goto_code_t));
+  CHECK_MEM_ERROR(gc);
+  gc->target = NULL;
+  return gc;
+}
+
+struct if_code_t * new_if_code(){
+  struct if_code_t* ic;
+  ic = (struct if_code_t*) malloc(sizeof(struct if_code_t));
+  CHECK_MEM_ERROR(ic);
+  ic->var = NULL;
+  ic->true_target = NULL;
+  ic->false_target = NULL;
+  return ic;
+}
+
+struct variable_t * new_variable(){
+  struct variable_t *var;
+  var = (struct variable_t*) malloc(sizeof(struct variable_t));
+  var->id = NULL;
+  var->value = 0;
+  return var;
+}
+
+
 /* ----------------------------------------------------------------------- 
  * Returns a pointer to a new statement_sequence
  * ----------------------------------------------------------------------- 
