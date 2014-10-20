@@ -1,0 +1,515 @@
+Test Run By gtkachuk on Wed Oct  1 10:12:12 2014
+Native configuration is i686-pc-linux-gnu
+
+		=== opc tests ===
+
+Schedule of variations:
+    unix
+
+Running target unix
+Using /usr/local/share/dejagnu/baseboards/unix.exp as board description file for target.
+Using /usr/local/share/dejagnu/config/unix.exp as generic interface file for target.
+WARNING: Couldn't find tool config file for unix, using default.
+Running ./tests_semantic.exp ...
+spawn ./test_compiled.sh
+opc: Usage: opc [-v] [-exitsem] [-O] [-ir] [-free] [-fcf] [-fvn] [-fgre] [--help]
+PASSED
+PASS: Binary compiled
+spawn ./test_missing_program_class.sh
+ERROR:Missing program class
+Errors detected. Exiting.
+PASSED
+PASS: Missing program class
+spawn ./test_missing_base_class.sh
+ERROR:9:Class "BB" attempted to extend class "AAAA" which does not exist
+Errors detected. Exiting.
+PASSED
+PASS: Missing base class
+spawn ./test_valid_class_definition.sh
+PASSED
+PASS: Simple, valid class definition
+spawn ./test_invalid_class_definition_underscores.sh
+'_' (0137): illegal character at line 8
+8: syntax error at 'Switch'
+Errors detected. Exiting.
+PASSED
+PASS: Simple, invalid class definition: underscores
+spawn ./test_invalid_class_definition_undeclared_vars.sh
+ERROR:13:Variable "numberOfHours" not declared
+ERROR:15:Variable "numberOfLines" not declared
+Errors detected. Exiting.
+PASSED
+PASS: Simple, invalid class definition: undeclared variables
+spawn ./test_datatype_defined.sh
+ERROR:16:Class "myCustomClass" already declared at line 4
+Errors detected. Exiting.
+PASSED
+PASS: Datatype already defined
+spawn ./test_datatype_not_defined.sh
+ERROR:7:Data type "myType" is not defined
+Errors detected. Exiting.
+PASSED
+PASS: Datatype is not defined
+spawn ./test_type_mismatch_integer.sh
+ERROR:13:Type mismatch between "boolean" and "integer"
+Errors detected. Exiting.
+PASSED
+PASS: Type mismatch of integer
+spawn ./test_type_mismatch_array_integer.sh
+ERROR:14:Type mismatch between "boolean" and "integer"
+Errors detected. Exiting.
+PASSED
+PASS: Type mismatch of an integer element in an array
+spawn ./test_variable_declared.sh
+ERROR:10:Variable "compilerWorks" already declared at line 8
+Errors detected. Exiting.
+PASSED
+PASS: Variable already declared
+spawn ./test_variable_not_declared.sh
+ERROR:12:Variable "jobDone" not declared
+Errors detected. Exiting.
+PASSED
+PASS: Variable not declared
+spawn ./test_variable_not_declared_complex.sh
+ERROR:12:Variable "undeclaredVariable" not declared
+Errors detected. Exiting.
+PASSED
+PASS: Variable not declared in a complex expression
+spawn ./test_variable_invalid_name_tf.sh
+ERROR:7:Invalid variable name "True"
+ERROR:8:Invalid variable name "FaLse"
+Errors detected. Exiting.
+PASSED
+PASS: Invalid variable name (True/False)
+spawn ./test_boolean_assignment_valid.sh
+PASSED
+PASS: Valid boolean assignment
+spawn ./test_boolean_assignment_invalid.sh
+ERROR:12:Type mismatch between "boolean" and "integer"
+Errors detected. Exiting.
+PASSED
+PASS: Invalid boolean assignment
+spawn ./test_indexed_variable_not_array.sh
+--- test_indexed_variable_not_array.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_indexed_variable_not_array.p.output	2014-10-01 10:12:13.193560466 -0700
+@@ -1,2 +0,0 @@
+-ERROR:15:Indexed variable "moreTests" is not an array
+-Errors detected. Exiting.
+FAILED
+FAIL: Indexed variable is not an array
+spawn ./test_array_index_boolean.sh
+ERROR:13:Array index not an integer for variable "rows"
+Errors detected. Exiting.
+--- test_array_index_boolean.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_index_boolean.p.output	2014-10-01 10:12:13.209560466 -0700
+@@ -1,2 +1,2 @@
+-ERROR:14:Array index not an integer for variable "rows"
++ERROR:13:Array index not an integer for variable "rows"
+ Errors detected. Exiting.
+FAILED
+FAIL: Array index is a boolean
+spawn ./test_array_index_boolean_variable.sh
+ERROR:14:Array index not an integer for variable "rows"
+Errors detected. Exiting.
+--- test_array_index_boolean_variable.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_index_boolean_variable.p.output	2014-10-01 10:12:13.229560467 -0700
+@@ -1,2 +1,2 @@
+-ERROR:15:Array index not an integer for variable "rows"
++ERROR:14:Array index not an integer for variable "rows"
+ Errors detected. Exiting.
+FAILED
+FAIL: Array index is a boolean variable
+spawn ./test_array_index_class.sh
+ERROR:20:Array index not an integer for variable "rows"
+Errors detected. Exiting.
+--- test_array_index_class.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_index_class.p.output	2014-10-01 10:12:13.245560468 -0700
+@@ -1,2 +1,2 @@
+-ERROR:21:Array index not an integer for variable "rows"
++ERROR:20:Array index not an integer for variable "rows"
+ Errors detected. Exiting.
+FAILED
+FAIL: Array index is a class
+spawn ./test_array_dim2.sh
+PASSED
+PASS: Array, 2-dimensional
+spawn ./test_array_dim4.sh
+PASSED
+PASS: Array, 4-dimensional
+spawn ./test_many_signs.sh
+ERROR:12:Too many signs
+Errors detected. Exiting.
+PASSED
+PASS: Too many (invalid) signs
+spawn ./test_many_nots.sh
+PASSED
+PASS: Too many (valid) NOTs
+spawn ./test_function_list.sh
+PASSED
+PASS: Function list
+spawn ./test_function_variable_same.sh
+ERROR:12:Variable name "testFunctionVariableSame" is reserved for use as a function return value
+Errors detected. Exiting.
+PASSED
+PASS: Variable name same as function name
+spawn ./test_function_return_valid.sh
+PASSED
+PASS: Valid set of return value of a function
+spawn ./test_function_return_invalid.sh
+--- test_function_return_invalid.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_return_invalid.p.output	2014-10-01 10:12:13.377560473 -0700
+@@ -1,2 +0,0 @@
+-ERROR:11:Variable name "testFunctionReturnInvalid" is reserved for use as a function return value
+-Errors detected. Exiting.
+FAILED
+FAIL: Invalid set of return value of a function 
+spawn ./test_function_return_invalid_complex.sh
+--- test_function_return_invalid_complex.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_return_invalid_complex.p.output	2014-10-01 10:12:13.393560474 -0700
+@@ -1,2 +0,0 @@
+-ERROR:9:Variable name "testFunctionReturnInvalidComplex" is reserved for use as a function return value
+-Errors detected. Exiting.
+FAILED
+FAIL: Invalid, complex set of return value of a function 
+spawn ./test_function_declared.sh
+--- test_function_declared.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_declared.p.output	2014-10-01 10:12:13.413560475 -0700
+@@ -1,2 +0,0 @@
+-ERROR:21:Function "setCompilerWorks" already declared at line 16
+-Errors detected. Exiting.
+FAILED
+FAIL: Function already declared
+spawn ./test_function_not_declared.sh
+--- test_function_not_declared.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_not_declared.p.output	2014-10-01 10:12:13.429560475 -0700
+@@ -1,2 +0,0 @@
+-ERROR:18:Function "setLightSwitchWorks" not declared
+-Errors detected. Exiting.
+FAILED
+FAIL: Function not declared
+spawn ./test_function_not_declared_complex.sh
+--- test_function_not_declared_complex.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_not_declared_complex.p.output	2014-10-01 10:12:13.445560476 -0700
+@@ -1,2 +0,0 @@
+-ERROR:18:Function "setLightSwitchWorks" not declared
+-Errors detected. Exiting.
+FAILED
+FAIL: Function not declared, complex
+spawn ./test_function_local_variable_declared.sh
+PASSED
+PASS: Function local variable declared
+spawn ./test_function_local_variable_not_declared.sh
+ERROR:12:Variable "someVar" not declared
+Errors detected. Exiting.
+PASSED
+PASS: Function local variable not declared
+spawn ./test_function_local_variable_not_declared_other_function.sh
+ERROR:21:Variable "someVar" not declared
+Errors detected. Exiting.
+PASSED
+PASS: Function local variable not declared (but declared in other function with same name)
+spawn ./test_function_local_variable_declared_base_class.sh
+PASSED
+PASS: Function local variable declared in base class
+spawn ./test_variable_declared_global.sh
+PASSED
+PASS: Function local variable masks global variable
+spawn ./test_variable_declared_global_extend.sh
+PASSED
+PASS: Function local variable masks global variable from base class
+spawn ./test_function_local_variable_list.sh
+PASSED
+PASS: Function, local variable list
+spawn ./test_variable_declared_base_class.sh
+ERROR:12:Variable "row" already declared at line 6
+Errors detected. Exiting.
+PASSED
+PASS: Class global variable declared in base class
+spawn ./test_function_call_class.sh
+PASSED
+PASS: Function call within class
+spawn ./test_function_call_multi.sh
+PASSED
+PASS: Function call within class, with multiple arguments
+spawn ./test_function_call_class_byref.sh
+PASSED
+PASS: Function call within class, pass-by-reference
+spawn ./test_function_call_object.sh
+ERROR:33:Type mismatch between "integer" and "myCustomClass"
+Errors detected. Exiting.
+--- test_function_call_object.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_call_object.p.output	2014-10-01 10:12:13.645560484 -0700
+@@ -0,0 +1,2 @@
++ERROR:33:Type mismatch between "integer" and "myCustomClass"
++Errors detected. Exiting.
+FAILED
+FAIL: Function call on other object
+spawn ./test_function_call_object_extend.sh
+ERROR:38:Type mismatch between "integer" and "middleManClass"
+Errors detected. Exiting.
+--- test_function_call_object_extend.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_call_object_extend.p.output	2014-10-01 10:12:13.661560485 -0700
+@@ -0,0 +1,2 @@
++ERROR:38:Type mismatch between "integer" and "middleManClass"
++Errors detected. Exiting.
+FAILED
+FAIL: Function call on other object that extended a class
+spawn ./test_function_call_object_missing.sh
+ERROR:31:Type mismatch between "boolean" and "myCustomClass"
+Errors detected. Exiting.
+--- test_function_call_object_missing.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_call_object_missing.p.output	2014-10-01 10:12:13.681560486 -0700
+@@ -1,2 +1,2 @@
+-ERROR:31:Function "setCompilerWorks" not declared
++ERROR:31:Type mismatch between "boolean" and "myCustomClass"
+ Errors detected. Exiting.
+FAILED
+FAIL: Function call (missing) on other object
+spawn ./test_function_call_base.sh
+PASSED
+PASS: Function call on base class
+spawn ./test_function_call_arg_object.sh
+PASSED
+PASS: Function call, object as argument
+spawn ./test_if_then_else.sh
+PASSED
+PASS: If then else
+spawn ./test_while_do.sh
+PASSED
+PASS: While do
+spawn ./test_expression_simple.sh
+PASSED
+PASS: Simple expression
+spawn ./test_expression_complex.sh
+PASSED
+PASS: Complex expression
+spawn ./test_expression_complex2.sh
+PASSED
+PASS: Complex expression 2
+spawn ./test_array_bounds_valid.sh
+PASSED
+PASS: Valid array bounds
+spawn ./test_array_bounds_invalid.sh
+--- test_array_bounds_invalid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_bounds_invalid.p.output	2014-10-01 10:12:13.817560491 -0700
+@@ -1,3 +0,0 @@
+-ERROR:13:Array index 3 is out of the range (4,9)
+-ERROR:17:Array index 10 is out of the range (4,9)
+-Errors detected. Exiting.
+FAILED
+FAIL: Invalid array bounds
+spawn ./test_array_bounds_declare_invalid.sh
+--- test_array_bounds_declare_invalid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_bounds_declare_invalid.p.output	2014-10-01 10:12:13.833560492 -0700
+@@ -1,2 +0,0 @@
+-ERROR:8:Invalid array range (7,2)
+-Errors detected. Exiting.
+FAILED
+FAIL: Invalid array bounds declaration
+spawn ./test_array_multi_bounds_valid.sh
+PASSED
+PASS: Valid multidimensional array bounds
+spawn ./test_array_multi_bounds_invalid.sh
+--- test_array_multi_bounds_invalid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_multi_bounds_invalid.p.output	2014-10-01 10:12:13.865560493 -0700
+@@ -1,4 +0,0 @@
+-ERROR:13:Array index 27 is out of the range (28,38)
+-ERROR:16:Array index 3 is out of the range (4,9)
+-ERROR:16:Array index 39 is out of the range (28,38)
+-Errors detected. Exiting.
+FAILED
+FAIL: Invalid multidimensional array bounds
+spawn ./test_function_args_few.sh
+--- test_function_args_few.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_function_args_few.p.output	2014-10-01 10:12:13.881560494 -0700
+@@ -1,2 +0,0 @@
+-ERROR:21:Function "test" not declared
+-Errors detected. Exiting.
+FAILED
+FAIL: Too few function arguments
+spawn ./test_this_variable_disambiguation.sh
+PASSED
+PASS: this.variable disambiguation
+spawn ./test_this_variable_disambiguation_extend.sh
+PASSED
+PASS: this.variable disambiguation when a class was extended
+spawn ./test_this_variable_not_declared.sh
+--- test_this_variable_not_declared.p.expected	2014-09-30 20:46:19.951724153 -0700
++++ test_this_variable_not_declared.p.output	2014-10-01 10:12:13.917560496 -0700
+@@ -1,4 +0,0 @@
+-ERROR:14:Variable "someVar" not declared
+-ERROR:16:Variable "someVar" not declared
+-ERROR:19:Variable "someVar" not declared
+-Errors detected. Exiting.
+FAILED
+FAIL: this.variable not declared
+spawn ./test_this_global_variable_valid.sh
+PASSED
+PASS: this global variable, valid
+spawn ./test_this_global_variable_invalid.sh
+--- test_this_global_variable_invalid.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_this_global_variable_invalid.p.output	2014-10-01 10:12:13.941560497 -0700
+@@ -1,2 +0,0 @@
+-ERROR:15:Type mismatch between "testThisGlobalVariableInvalid" and "integer"
+-Errors detected. Exiting.
+FAILED
+FAIL: this global variable, invalid
+spawn ./test_class_assignment_base_type_valid.sh
+ERROR:27:Type mismatch between "AA" and "BB"
+Errors detected. Exiting.
+--- test_class_assignment_base_type_valid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_assignment_base_type_valid.p.output	2014-10-01 10:12:13.961560497 -0700
+@@ -0,0 +1,2 @@
++ERROR:27:Type mismatch between "AA" and "BB"
++Errors detected. Exiting.
+FAILED
+FAIL: Valid class assignment of base type
+spawn ./test_class_assignment_base_type_invalid.sh
+ERROR:26:Type mismatch between "BB" and "AA"
+Errors detected. Exiting.
+--- test_class_assignment_base_type_invalid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_assignment_base_type_invalid.p.output	2014-10-01 10:12:13.977560498 -0700
+@@ -1,2 +1,2 @@
+-ERROR:26:Class "aa" is not a base class of "bb" in the assignment
++ERROR:26:Type mismatch between "BB" and "AA"
+ Errors detected. Exiting.
+FAILED
+FAIL: Invalid class assignment of base type
+spawn ./test_class_equivalence_valid.sh
+ERROR:31:Type mismatch between "AA" and "BB"
+Errors detected. Exiting.
+--- test_class_equivalence_valid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_equivalence_valid.p.output	2014-10-01 10:12:13.989560499 -0700
+@@ -0,0 +1,2 @@
++ERROR:31:Type mismatch between "AA" and "BB"
++Errors detected. Exiting.
+FAILED
+FAIL: Valid structural class equivalence
+spawn ./test_class_equivalence_invalid_order.sh
+ERROR:31:Type mismatch between "AA" and "BB"
+Errors detected. Exiting.
+--- test_class_equivalence_invalid_order.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_equivalence_invalid_order.p.output	2014-10-01 10:12:14.005560499 -0700
+@@ -1,2 +1,2 @@
+-ERROR:31:Class "bb" is not a base class of "aa" in the assignment
++ERROR:31:Type mismatch between "AA" and "BB"
+ Errors detected. Exiting.
+FAILED
+FAIL: Invalid class equivalence (different order of variables)
+spawn ./test_class_equivalence_invalid_types.sh
+ERROR:31:Type mismatch between "AA" and "BB"
+Errors detected. Exiting.
+--- test_class_equivalence_invalid_types.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_equivalence_invalid_types.p.output	2014-10-01 10:12:14.021560500 -0700
+@@ -1,2 +1,2 @@
+-ERROR:31:Class "bb" is not a base class of "aa" in the assignment
++ERROR:31:Type mismatch between "AA" and "BB"
+ Errors detected. Exiting.
+FAILED
+FAIL: Invalid class equivalence (different types of variables)
+spawn ./test_array_assignment_valid.sh
+PASSED
+PASS: Valid array assignment
+spawn ./test_array_assignment_invalid.sh
+--- test_array_assignment_invalid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_array_assignment_invalid.p.output	2014-10-01 10:12:14.057560501 -0700
+@@ -1,2 +0,0 @@
+-ERROR:13:Type mismatch between "__usrdef_0" and "__usrdef_1"
+-Errors detected. Exiting.
+FAILED
+FAIL: Invalid array assignment
+spawn ./test_class_preuse_valid.sh
+ERROR:8:Data type "classBB" is not defined
+Errors detected. Exiting.
+--- test_class_preuse_valid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_preuse_valid.p.output	2014-10-01 10:12:14.077560502 -0700
+@@ -0,0 +1,2 @@
++ERROR:8:Data type "classBB" is not defined
++Errors detected. Exiting.
+FAILED
+FAIL: Valid class use before class declaration
+spawn ./test_class_preuse_invalid.sh
+ERROR:8:Data type "classBB" is not defined
+Errors detected. Exiting.
+PASSED
+PASS: Invalid class use before class declaration
+spawn ./test_class_preuse_assignment_valid.sh
+ERROR:8:Data type "classBB" is not defined
+Errors detected. Exiting.
+--- test_class_preuse_assignment_valid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_preuse_assignment_valid.p.output	2014-10-01 10:12:14.109560504 -0700
+@@ -0,0 +1,2 @@
++ERROR:8:Data type "classBB" is not defined
++Errors detected. Exiting.
+FAILED
+FAIL: Valid class use before class declaration with assignment
+spawn ./test_class_preuse_function_valid.sh
+ERROR:8:Data type "classBB" is not defined
+Errors detected. Exiting.
+--- test_class_preuse_function_valid.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_class_preuse_function_valid.p.output	2014-10-01 10:12:14.125560504 -0700
+@@ -0,0 +1,2 @@
++ERROR:8:Data type "classBB" is not defined
++Errors detected. Exiting.
+FAILED
+FAIL: Valid class use before class declaration with function call
+spawn ./test_object_instantiation.sh
+PASSED
+PASS: New object instantiation
+spawn ./test_attribute_designator_simple.sh
+ERROR:30:Type mismatch between "AA" and "integer"
+ERROR:31:Type mismatch between "integer" and "AA"
+Errors detected. Exiting.
+--- test_attribute_designator_simple.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_attribute_designator_simple.p.output	2014-10-01 10:12:14.161560506 -0700
+@@ -0,0 +1,3 @@
++ERROR:30:Type mismatch between "AA" and "integer"
++ERROR:31:Type mismatch between "integer" and "AA"
++Errors detected. Exiting.
+FAILED
+FAIL: Attribute designator access, simple
+spawn ./test_attribute_designator_complex.sh
+PASSED
+PASS: Attribute designator access, complex
+spawn ./test_attribute_designator_multi.sh
+ERROR:34:Type mismatch between "house" and "integer"
+ERROR:35:Type mismatch between "house" and "integer"
+ERROR:36:Type mismatch between "house" and "integer"
+ERROR:39:Type mismatch between "house" and "integer"
+Errors detected. Exiting.
+--- test_attribute_designator_multi.p.expected	2014-09-30 20:46:19.943724153 -0700
++++ test_attribute_designator_multi.p.output	2014-10-01 10:12:14.193560507 -0700
+@@ -0,0 +1,5 @@
++ERROR:34:Type mismatch between "house" and "integer"
++ERROR:35:Type mismatch between "house" and "integer"
++ERROR:36:Type mismatch between "house" and "integer"
++ERROR:39:Type mismatch between "house" and "integer"
++Errors detected. Exiting.
+FAILED
+FAIL: Attribute designator access, multi-level
+spawn ./test_attribute_designator_multi_this.sh
+PASSED
+PASS: Attribute designator access, multi-level with this
+spawn ./test_indexed_variable_complex.sh
+PASSED
+PASS: Indexed variable access, complex
+spawn ./test_method_designator_complex.sh
+PASSED
+PASS: Method designator access, complex
+spawn ./test_method_designator_complex_this.sh
+ERROR:40:Type mismatch between "integer" and "house"
+Errors detected. Exiting.
+--- test_method_designator_complex_this.p.expected	2014-09-30 20:46:19.947724153 -0700
++++ test_method_designator_complex_this.p.output	2014-10-01 10:12:14.261560510 -0700
+@@ -0,0 +1,2 @@
++ERROR:40:Type mismatch between "integer" and "house"
++Errors detected. Exiting.
+FAILED
+FAIL: Method designator access, complex with this
+testcase ./tests_semantic.exp completed in 2 seconds
+
+		=== opc Summary ===
+
+# of expected passes		53
+# of unexpected failures	30
+runtest completed at Wed Oct  1 10:12:14 2014

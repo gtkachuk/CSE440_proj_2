@@ -1,0 +1,7 @@
+// group: Travis Seville, Georgii Tkachuk
+
+Travis worked on the symbol table, type checking and array indices
+Georgii worked on semantic checking and non-declarations of variables
+
+to compile: make
+

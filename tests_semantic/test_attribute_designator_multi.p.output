@@ -1,0 +1,5 @@
+ERROR:34:Type mismatch between "house" and "integer"
+ERROR:35:Type mismatch between "house" and "integer"
+ERROR:36:Type mismatch between "house" and "integer"
+ERROR:39:Type mismatch between "house" and "integer"
+Errors detected. Exiting.
