@@ -112,8 +112,8 @@ void dprint(char * str)
 	struct	actual_parameter_list_t	*apl;
 	struct	actual_parameter_t	*ap;
 	struct	array_type_t	*at;
-  //struct  op_code_t* as;
-	struct	assignment_statement_t	*as;
+  struct  op_code_t* as;
+	//struct	assignment_statement_t	*as;
 	struct	attribute_designator_t	*ad;
 	struct	class_block_t	*cb;
 	struct	class_identification_t	*ci;
@@ -522,22 +522,25 @@ statement_sequence : statement
       if ($$->t.if_code != NULL){
         temp = $$->t.if_code->true_target;
       }
-            while(temp != NULL)
+
+      while(temp != NULL)
       {
         //find this true block's final statement
         prev = temp;   
         temp = temp->next;
       }
-      prev->next = $3;
+      if(prev != NULL) prev->next = $3;
       //attach the next statement to the end of this if's false block. Why did he only mention true?
-      temp = $$->t.if_code->false_target;
+      if ($$->t.if_code != NULL){
+        temp = $$->t.if_code->false_target;
+      }
       prev = NULL;
       while(temp != NULL)
       {
         prev = temp;
         temp = temp->next;
       }
-      prev->next = $3;
+      if(prev != NULL) prev->next = $3;
     }
     else
 		  $$->next = $3;
@@ -604,8 +607,6 @@ assignment_statement : variable_access ASSIGNMENT expression
 		struct assignment_statement_t * assignment_statement = new_assignment_statement();
     
 		$$ = assignment_statement;
-		$$->va = $1;
-		$$->e = $3;
 		switch ($1->type)
 		{
 			case VARIABLE_ACCESS_T_IDENTIFIER:
@@ -633,8 +634,6 @@ assignment_statement : variable_access ASSIGNMENT expression
     
 		struct assignment_statement_t * assignment_statement = new_assignment_statement();
 		$$ = assignment_statement;
-		$$->va = $1;
-		$$->oe = $3;
     
 	}
  ;
@@ -849,8 +848,11 @@ expression : simple_expression
 	}
  ;
 
+
+
 simple_expression : term
 	{
+
 		struct simple_expression_t * simple_expression = new_simple_expression();
 		$$ = simple_expression;
 		$$->t = $1;
@@ -859,6 +861,21 @@ simple_expression : term
 	}
  | simple_expression addop term
 	{
+    /*given a single line complex statement we break it down into two, 
+    connect the two and return the pointer to the starting code:
+    a = b + c * d :
+          |
+    |----------|
+    |t = c * d |
+    |----------|
+          |
+    |----------|
+    |a = b + t |
+    |----------|
+    
+    return pointer to t
+    */ 
+    //FIX: need to break this into 2 codes
 		struct simple_expression_t * simple_expression = new_simple_expression();
 		$$ = simple_expression;
 		$$->next = $1;
