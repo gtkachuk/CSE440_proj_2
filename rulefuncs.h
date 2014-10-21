@@ -47,6 +47,8 @@ struct variable_access_t *new_variable_access();
 struct assignment_statement_t *new_assignment_statement();
 struct object_instantiation_t *new_object_instantiation();
 struct print_statement_t *new_print_statement();
+struct code_t *new_code();
+struct if_code_t *new_if_code();
 struct expression_t *new_expression();
 struct statement_t *new_statement();
 struct statement_sequence_t *new_statement_sequence();

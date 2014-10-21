@@ -447,16 +447,17 @@ struct statement_t *new_statement()
 }
 
 
-struct code_t *new_code()
+struct code_t* new_code()
 {
   struct code_t *c;
   c = (struct code_t*) malloc(sizeof(struct code_t));
   CHECK_MEM_ERROR(c)
   c->type = -1;
-  c->next = NULL;
   c->t.op_code = NULL;
+  c->t.label_code = NULL;
   c->t.goto_code = NULL;
   c->t.if_code = NULL;
+  c->next = NULL;
   return c;
 }
 
@@ -470,17 +471,24 @@ struct op_code_t* new_op_code(){
   return oc;
 }
 
+struct label_t * new_label(){
+  struct label_t* l;
+  l = (struct label_t*) malloc(sizeof(struct label_t));
+  CHECK_MEM_ERROR(l);
+  l->id = NULL;
+  return l;
+}
+
 struct goto_code_t * new_goto_code(){
   struct goto_code_t* gc;
   gc = (struct goto_code_t*) malloc(sizeof(struct goto_code_t));
   CHECK_MEM_ERROR(gc);
-  gc->target = NULL;
   return gc;
 }
 
 struct if_code_t * new_if_code(){
   struct if_code_t* ic;
-  ic = (struct if_code_t*) malloc(sizeof(struct if_code_t));
+  ic = (struct if_code_t*)malloc(sizeof(struct if_code_t));
   CHECK_MEM_ERROR(ic);
   ic->var = NULL;
   ic->true_target = NULL;

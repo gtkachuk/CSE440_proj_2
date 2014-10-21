@@ -41,7 +41,7 @@ void dprint(char * str)
 %token GE GT IDENTIFIER IF LBRAC LE LPAREN LT MINUS MOD NEW NOT
 %token NOTEQUAL OF OR PBEGIN PLUS PRINT PROGRAM RBRAC
 %token RPAREN SEMICOLON SLASH STAR THEN
-%token VAR WHILE
+%token VAR WHILE GOTO
 
 
 %type <program> program
@@ -99,7 +99,9 @@ void dprint(char * str)
 %type <vdl> variable_declaration_list
 %type <vdl> variable_declaration_part
 %type <fps> variable_parameter_specification
+%type <gts> goto_statement
 %type <ws> while_statement
+%type <l> label
 
 
 %union
@@ -110,6 +112,7 @@ void dprint(char * str)
 	struct	actual_parameter_list_t	*apl;
 	struct	actual_parameter_t	*ap;
 	struct	array_type_t	*at;
+  //struct  op_code_t* as;
 	struct	assignment_statement_t	*as;
 	struct	attribute_designator_t	*ad;
 	struct	class_block_t	*cb;
@@ -126,10 +129,12 @@ void dprint(char * str)
 	struct	function_declaration_t	*cur_class;
 	struct	function_designator_t	*fdes;
 	struct	function_heading_t	*fh;
+  struct  goto_code_t *gts;
 	struct	identifier_list_t	*idl;
-	struct	if_statement_t	*is;
+	struct	if_code_t	*is;
 	struct	index_expression_list_t	*iel;
 	struct	indexed_variable_t	*iv;
+  struct  label_t *l;
 	struct	method_designator_t	*md;
 	struct	object_instantiation_t	*os;
 	struct	primary_t	*p;
@@ -138,8 +143,9 @@ void dprint(char * str)
 	struct	program_t	*program;
 	struct	range_t	*r;
 	struct	simple_expression_t	*se;
-	struct	statement_sequence_t	*ss;
-	struct	statement_t	*s;
+	struct	code_t	*ss;
+  //replaced statement_t with code_t for statement.
+	struct	code_t	*s;
 	struct	term_t	*t;
 	struct	type_denoter_t	*tden;
 	struct	unsigned_number_t	*un;
@@ -501,59 +507,75 @@ compound_statement : PBEGIN statement_sequence END
 
 statement_sequence : statement
 	{
-		struct statement_sequence_t * statement_sequence = new_statement_sequence();
-		$$ = statement_sequence;
-		$$->s = $1;
+		$$ = $1;
+
 	}
  | statement_sequence semicolon statement
 	{
-		struct statement_sequence_t * statement_sequence = new_statement_sequence();
-		$$ = statement_sequence;
-		$$->next = $1;
-		$$->s = $3;
+		$$ = $1;
+    if($$->type == T_IF_CODE)
+    {
+      struct code_t* temp = NULL;
+      struct code_t* prev = NULL;
+
+      //attach the next statement to the end of this if's true block
+      if ($$->t.if_code != NULL){
+        temp = $$->t.if_code->true_target;
+      }
+            while(temp != NULL)
+      {
+        //find this true block's final statement
+        prev = temp;   
+        temp = temp->next;
+      }
+      prev->next = $3;
+      //attach the next statement to the end of this if's false block. Why did he only mention true?
+      temp = $$->t.if_code->false_target;
+      prev = NULL;
+      while(temp != NULL)
+      {
+        prev = temp;
+        temp = temp->next;
+      }
+      prev->next = $3;
+    }
+    else
+		  $$->next = $3;
 	}
  ;
 
 statement : assignment_statement
 	{
-		struct statement_t * statement = new_statement();
-		$$ = statement;
+		//struct statement_t * statement = new_statement();
+    struct code_t *code = new_code();
+		$$ = code;
 		// this needs to be assigned a type, and handle the struct
 		$$->type = STATEMENT_T_ASSIGNMENT;
-		$$->data.as = $1;
+		$$->t.op_code = $1;
 		$$->line_number = line_number;
 	}
  | compound_statement
 	{
-		struct statement_t * statement = new_statement();
-		$$ = statement;
-		$$->type = STATEMENT_T_SEQUENCE;
-		$$->data.ss = $1;
-		$$->line_number = line_number;
+    //will point to the first statement in the compound statement
+		$$ = $1;
 	}
  | if_statement
 	{
-		struct statement_t * statement = new_statement();
-		$$ = statement;
+    struct code_t * code = new_code();
+		$$ = code;
 		$$->type = STATEMENT_T_IF;
-		$$->data.is = $1;
+    $$->t.if_code = $1;
 		$$->line_number = line_number;
 	}
  | while_statement
 	{
 		struct statement_t * statement = new_statement();
 		$$ = statement;
-		$$->type = STATEMENT_T_WHILE;
-		$$->data.ws = $1;
-		$$->line_number = line_number;
 	}
  | print_statement
 	{
 		struct statement_t * statement = new_statement();
 		$$ = statement;
-		$$->type = STATEMENT_T_PRINT;
-		$$->data.ps = $1;
-		$$->line_number = line_number;
 	}
  ;
 
@@ -568,17 +590,19 @@ while_statement : WHILE boolean_expression DO compound_statement
 
 if_statement : IF boolean_expression THEN compound_statement ELSE compound_statement
 	{
-		struct if_statement_t * if_statement = new_if_statement();
-		$$ = if_statement;
-		$$->e = $2;
-		$$->s1 = $4;
-		$$->s2 = $6;
+    struct if_code_t * if_code = new_if_code();
+		$$ = if_code;
+    //We have to break down this boolean expression into statements;
+    $$->var = $2;
+    $$->true_target = $4;
+    $$->false_target = $6;
 	}
  ;
 
 assignment_statement : variable_access ASSIGNMENT expression
 	{
 		struct assignment_statement_t * assignment_statement = new_assignment_statement();
+    
 		$$ = assignment_statement;
 		$$->va = $1;
 		$$->e = $3;
@@ -601,14 +625,17 @@ assignment_statement : variable_access ASSIGNMENT expression
 		    (strcasecmp($1->expr->type, $3->expr->type)) != 0)
 		{
 			error_type_mismatch(line_number, $1->expr->type, $3->expr->type);
-		}			
+		}	
+    
 	}
  | variable_access ASSIGNMENT object_instantiation
 	{
+    
 		struct assignment_statement_t * assignment_statement = new_assignment_statement();
 		$$ = assignment_statement;
 		$$->va = $1;
 		$$->oe = $3;
+    
 	}
  ;
 
@@ -635,6 +662,21 @@ print_statement : PRINT variable_access
 	}
 ;
 
+goto_statement : GOTO label
+  {
+    struct goto_code_t * goto_code = new_goto_code();
+    $$ = goto_code;
+    $$->next = label;
+  }
+;
+
+label : identifier COLON
+  {
+    struct label_t* label = new_label();
+    $$ = label;
+    $$->id = identifier;
+  }
+;
 variable_access : identifier
 	{
 		struct variable_access_t * variable_access = new_variable_access();
@@ -959,6 +1001,7 @@ function_designator : identifier params
 		
 	}
  ;
+
 
 addop: PLUS
 	{

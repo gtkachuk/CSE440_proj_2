@@ -323,7 +323,7 @@ struct if_statement_t{
 
 struct while_statement_t{
   struct expression_t *e;
-  struct statement_sequence_t *s;
+  struct code_t *s;
 };
 
 struct print_statement_t{
@@ -332,7 +332,7 @@ struct print_statement_t{
 
 struct function_block_t{
   struct variable_declaration_list_t *vdl;
-  struct statement_sequence_t *ss;
+  struct code_t *ss;
 };
 
 struct statement_sequence_t;
@@ -364,16 +364,21 @@ struct statement_sequence_t{
   struct statement_sequence_t *next;
 };
 
-
+#define  T_OP_CODE 1
+#define  T_GOTO_CODE 2
+#define  T_IF_CODE 3
+#define  T_LABEL_CODE 4
 struct code_t{
   union{
     struct op_code_t *op_code;
     struct goto_code_t * goto_code;
     struct if_code_t * if_code;
+    struct label_t * label_code;
   }t;
-  int type; //op | if | goto
+  int type; //op | if | goto | label
   //pointer to the next statement or sequence of code
-  struct code_t * next; 
+  struct code_t * next;
+  int line_number; 
 };
 
 //complex operation has to be minimized to a series of simplest operations: a = b op c or a = b.
@@ -383,8 +388,11 @@ struct op_code_t{
   int relop;
 }; 
 
+struct label_t{
+  char * id;
+};
+
 struct goto_code_t{
-  struct code_t* target;
 };
 
 struct if_code_t{
@@ -395,7 +403,7 @@ struct if_code_t{
 
 struct variable_t{
   struct identifier_t *id;
-  int value; //do we have ints and others? in that case we have to specify type
+  int value; //do we have floats and others? in that case we have to specify type
 };
 /* ---------------------------------------------------------------- */
 

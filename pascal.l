@@ -63,6 +63,7 @@ NQUOTE [^']
 {T}{H}{E}{N}   return(THEN);
 {V}{A}{R}   return(VAR);
 {W}{H}{I}{L}{E}   return(WHILE);
+{G}{O}{T}{O}    return(GOTO);
 [a-zA-Z]([a-zA-Z0-9])+  {
     yylval.id = strdup(yytext);
     return(IDENTIFIER);
