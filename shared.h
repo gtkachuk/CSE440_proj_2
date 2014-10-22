@@ -5,6 +5,7 @@
 
 #ifndef SHARED_H
 #define SHARED_H
+#define DEBUG 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -233,6 +234,7 @@ struct factor_t{
     struct primary_t *p;
   }data;
   struct expression_data_t *expr;
+  struct variable_t * var;
 };
 
 struct term_t;
@@ -241,6 +243,8 @@ struct term_t{
   int mulop;
   struct expression_data_t *expr;
   struct term_t *next;
+  struct code_t *code;
+  struct variable_t * var;
 };
 
 struct simple_expression_t;
@@ -249,6 +253,8 @@ struct simple_expression_t{
   int addop;
   struct expression_data_t *expr;
   struct simple_expression_t *next;
+  struct code_t *code;
+  struct variable_t * var;
 };
 
 struct expression_t{
@@ -256,6 +262,8 @@ struct expression_t{
   int relop;
   struct simple_expression_t *se2;
   struct expression_data_t *expr;
+  struct code_t *code;
+  struct variable_t * var;
 };
 
 struct index_expression_list_t;
@@ -301,6 +309,7 @@ struct variable_access_t{
 				a verbose description of the data type
 				that is validated */
   struct expression_data_t *expr;
+  struct variable_t * var;
 };
 
 struct object_instantiation_t{
@@ -312,6 +321,7 @@ struct assignment_statement_t{
   struct variable_access_t *va;
   struct expression_t *e;  
   struct object_instantiation_t *oe;
+  struct code_t * code;
 };
 
 struct statement_t;
@@ -319,15 +329,18 @@ struct if_statement_t{
   struct expression_t *e;
   struct statement_sequence_t *s1;
   struct statement_sequence_t *s2;
+  struct code_t * code;
 };
 
 struct while_statement_t{
   struct expression_t *e;
-  struct code_t *s;
+  struct statement_sequence_t *s;
+  struct code_t *code;
 };
 
 struct print_statement_t{
   struct variable_access_t *va;
+  struct code_t * code;
 };
 
 struct function_block_t{
@@ -357,6 +370,7 @@ struct statement_t {
     struct print_statement_t *ps;
   }data;
   int line_number;
+  struct code_t * code;
 };
 
 struct statement_sequence_t{
@@ -364,18 +378,20 @@ struct statement_sequence_t{
   struct statement_sequence_t *next;
 };
 
-#define  T_OP_CODE 1
-#define  T_GOTO_CODE 2
-#define  T_IF_CODE 3
-#define  T_LABEL_CODE 4
+#define T_OP_CODE 1
+#define T_GOTO_CODE 2
+#define T_IF_CODE 3
+#define T_LABEL_CODE 4
+#define T_ASSIGN_CODE 5
 struct code_t{
   union{
     struct op_code_t *op_code;
     struct goto_code_t * goto_code;
     struct if_code_t * if_code;
     struct label_t * label_code;
+	struct assign_code_t * assign_code;
   }t;
-  int type; //op | if | goto | label
+  int type; //op | if | goto | label | assign
   //pointer to the next statement or sequence of code
   struct code_t * next;
   int line_number; 
@@ -383,10 +399,23 @@ struct code_t{
 
 //complex operation has to be minimized to a series of simplest operations: a = b op c or a = b.
 struct op_code_t{
-  struct variable_t *v1;
-  struct variable_t *v2;
-  int relop;
+	struct variable_t *assigned;
+	struct variable_t *v1;
+	struct variable_t *v2;
+	int op; // this can be any kind of op (mulop, addop, or relop)
 }; 
+
+// maybe this can be added to op_code_t?
+struct assign_code_t
+{
+	// To simplify i think on number values in the assignment, we can 
+	// give them yacc code to a new tempvar, this way this is always two variables
+	// eg a = a + 1
+	// on parsing 1, give it a new variable with id t_n and value 1
+	// thoughts?
+	struct variable_t *assigned;
+	struct variable_t *v1;
+};
 
 struct label_t{
   char * id;
@@ -402,8 +431,9 @@ struct if_code_t{
 };
 
 struct variable_t{
-  struct identifier_t *id;
-  int value; //do we have floats and others? in that case we have to specify type
+  char *id;
+  int value; // this will end up being index for value numbering array
+  //do we have floats and others? in that case we have to specify type T:No, just ints
 };
 /* ---------------------------------------------------------------- */
 

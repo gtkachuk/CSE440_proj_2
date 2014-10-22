@@ -88,7 +88,10 @@ struct formal_parameter_section_t *new_formal_parameter_section();
 struct program_t *new_program();
 struct program_heading_t *new_program_heading();
 struct expression_data_t *new_expression_data();
-
+struct variable_t * new_variable();
+struct op_code_t * new_op_code();
+struct assign_code_t * new_assign_code();
+char * nextTempId();
 
 
 #endif

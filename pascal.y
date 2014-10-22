@@ -112,8 +112,8 @@ void dprint(char * str)
 	struct	actual_parameter_list_t	*apl;
 	struct	actual_parameter_t	*ap;
 	struct	array_type_t	*at;
-  struct  op_code_t* as;
-	//struct	assignment_statement_t	*as;
+  //struct  op_code_t* as;
+	struct	assignment_statement_t	*as;
 	struct	attribute_designator_t	*ad;
 	struct	class_block_t	*cb;
 	struct	class_identification_t	*ci;
@@ -129,12 +129,12 @@ void dprint(char * str)
 	struct	function_declaration_t	*cur_class;
 	struct	function_designator_t	*fdes;
 	struct	function_heading_t	*fh;
-  struct  goto_code_t *gts;
+	struct  goto_statement_t *gts;
 	struct	identifier_list_t	*idl;
-	struct	if_code_t	*is;
+	struct	if_statement_t	*is;
 	struct	index_expression_list_t	*iel;
 	struct	indexed_variable_t	*iv;
-  struct  label_t *l;
+	struct  label_t *l;
 	struct	method_designator_t	*md;
 	struct	object_instantiation_t	*os;
 	struct	primary_t	*p;
@@ -143,9 +143,9 @@ void dprint(char * str)
 	struct	program_t	*program;
 	struct	range_t	*r;
 	struct	simple_expression_t	*se;
-	struct	code_t	*ss;
+	struct	statement_sequence_t	*ss;
   //replaced statement_t with code_t for statement.
-	struct	code_t	*s;
+	struct	statement_t	*s;
 	struct	term_t	*t;
 	struct	type_denoter_t	*tden;
 	struct	unsigned_number_t	*un;
@@ -225,12 +225,12 @@ class_identification : CLASS identifier
 		$$ = class_identification;
 		$$->id = $2;
         $$->line_number = line_number;
-		if (DEBUG) printf("\nIN THE BASE CLASS THING: %s\n",cur_class_scopes->id);
+		//if (DEBUG) printf("\nIN THE BASE CLASS THING: %s\n",cur_class_scopes->id);
 		struct symbol *s = addClass($$->id, line_number, NULL, cur_class_scopes);
 		//set this cl as current scope. We can refer to this from other productions.
 		if (s != NULL)
 		{
-			if (DEBUG) printf("\nADDING %s TO CUR CLASS SCOPES.\n", $2);
+			//if (DEBUG) printf("\nADDING %s TO CUR CLASS SCOPES.\n", $2);
 			add_to_identifier_list_front(&cur_class_scopes, $2);
 		}
 		else
@@ -256,7 +256,7 @@ class_identification : CLASS identifier
                 //set this cl as current scope. We can refer to this from other productions.
                 if (s != NULL)
                 {
-                        if (DEBUG) printf("\nADDING %s TO CUR CLASS SCOPES.\n", $2);
+                        //if (DEBUG) printf("\nADDING %s TO CUR CLASS SCOPES.\n", $2);
                         add_to_identifier_list_front(&cur_class_scopes, $2);
                 }
                 else
@@ -315,12 +315,10 @@ range : unsigned_integer DOTDOT unsigned_integer
 
 variable_declaration_part : VAR variable_declaration_list semicolon
 	{
-        struct variable_declaration_list_t *vd = new_variable_declaration_list();
 		$$ = $2;
 	}
  |
 	{
-        struct variable_declaration_list_t *vd = new_variable_declaration_list();
         $$ = NULL; 
 	}
  ;
@@ -351,7 +349,7 @@ variable_declaration : identifier_list COLON type_denoter
 		struct identifier_list_t * _il = $1;
 		while(_il != NULL)
 		{
-			if (DEBUG) printf("\nADDING %s : TYPE: %s SCOPE: %s \n\n", _il->id, $3->name, cur_class_scopes->id);
+			//if (DEBUG) printf("\nADDING %s : TYPE: %s SCOPE: %s \n\n", _il->id, $3->name, cur_class_scopes->id);
 			if (strcasecmp(_il->id, "True") == 0)
 				error_variable_name_invalid(line_number, _il->id);
 			if (strcasecmp(_il->id, "False") == 0)
@@ -377,14 +375,12 @@ func_declaration_list : func_declaration_list semicolon function_declaration
 	}
  |
 	{
-		struct func_declaration_list_t * func_declaration_list = new_func_declaration_list();
-		$$ = NULL;
+		$$= NULL;
 	}
  ;
 
 formal_parameter_list : LPAREN formal_parameter_section_list RPAREN 
 	{
-		struct formal_parameter_section_list_t * formal_parameter_section_list = new_formal_parameter_section_list();
         $$ = $2;
 	}
 ;
@@ -507,98 +503,116 @@ compound_statement : PBEGIN statement_sequence END
 
 statement_sequence : statement
 	{
-		$$ = $1;
-
+		struct statement_sequence_t * statement_sequence = new_statement_sequence();
+		$$ = statement_sequence;
+		$$->s = $1;
 	}
  | statement_sequence semicolon statement
 	{
-		$$ = $1;
-    if($$->type == T_IF_CODE)
-    {
-      struct code_t* temp = NULL;
-      struct code_t* prev = NULL;
+		struct statement_sequence_t * statement_sequence = new_statement_sequence(); 
+		$$ = statement_sequence;
+		$$->s = $3;
+		$$->next = $1;
+		/*
+		if($$->type == T_IF_CODE)
+		{
+		  struct code_t* temp = NULL;
+		  struct code_t* prev = NULL;
 
-      //attach the next statement to the end of this if's true block
-      if ($$->t.if_code != NULL){
-        temp = $$->t.if_code->true_target;
-      }
+		  //attach the next statement to the end of this if's true block
+		  if ($$->code->t.if_code != NULL){
+			temp = $$->code->t.if_code->true_target;
+		  }
 
-      while(temp != NULL)
-      {
-        //find this true block's final statement
-        prev = temp;   
-        temp = temp->next;
-      }
-      if(prev != NULL) prev->next = $3;
-      //attach the next statement to the end of this if's false block. Why did he only mention true?
-      if ($$->t.if_code != NULL){
-        temp = $$->t.if_code->false_target;
-      }
-      prev = NULL;
-      while(temp != NULL)
-      {
-        prev = temp;
-        temp = temp->next;
-      }
-      if(prev != NULL) prev->next = $3;
-    }
-    else
-		  $$->next = $3;
+		  while(temp != NULL)
+		  {
+			//find this true block's final statement
+			prev = temp;   
+			temp = temp->next;
+		  }
+		  if(prev != NULL) prev->next = $3;
+		  //attach the next statement to the end of this if's false block. Why did he only mention true?
+		  if ($$->code->t.if_code != NULL){
+			temp = $$->code->t.if_code->false_target;
+		  }
+		  prev = NULL;
+		  while(temp != NULL)
+		  {
+			prev = temp;
+			temp = temp->next;
+		  }
+		  if(prev != NULL) prev->next = $3;
+		}
+		else
+			  $$->next = $3;
+		*/
 	}
- ;
+;
 
-statement : assignment_statement
+statement: assignment_statement
 	{
-		//struct statement_t * statement = new_statement();
-    struct code_t *code = new_code();
-		$$ = code;
+		struct statement_t * statement = new_statement();
+		$$ = statement;
 		// this needs to be assigned a type, and handle the struct
 		$$->type = STATEMENT_T_ASSIGNMENT;
-		$$->t.op_code = $1;
+		$$->data.as = $1;
 		$$->line_number = line_number;
+		$$->code = $1->code;
 	}
- | compound_statement
+	| compound_statement
 	{
-    //will point to the first statement in the compound statement
-		$$ = $1;
+		struct statement_t * statement = new_statement();
+		$$ = statement;
+		$$->type = STATEMENT_T_SEQUENCE;
+		$$->data.ss = $1;
+		$$->line_number = line_number;
+		//$$->code = $1->code;
 	}
- | if_statement
+	| if_statement
 	{
-    struct code_t * code = new_code();
-		$$ = code;
+		struct statement_t * statement = new_statement();
+		$$ = statement;
 		$$->type = STATEMENT_T_IF;
-    $$->t.if_code = $1;
+		$$->data.is = $1;
 		$$->line_number = line_number;
+		$$->code = $1->code;
 	}
- | while_statement
+	| while_statement
 	{
 		struct statement_t * statement = new_statement();
 		$$ = statement;
+		$$->type = STATEMENT_T_WHILE;
+		$$->data.ws = $1;
+		$$->line_number = line_number;
+		$$->code = $1->code;
 	}
- | print_statement
+	| print_statement
 	{
 		struct statement_t * statement = new_statement();
 		$$ = statement;
+		$$->type = STATEMENT_T_PRINT;
+		$$->data.ps = $1;
+		$$->line_number = line_number;
+		$$->code = $1->code;
 	}
- ;
+;
 
-while_statement : WHILE boolean_expression DO compound_statement
+while_statement: WHILE boolean_expression DO compound_statement
 	{
 		struct while_statement_t * while_statement = new_while_statement();
 		$$ = while_statement;
 		$$->e = $2;
 		$$->s = $4;
 	}
- ;
+;
 
 if_statement : IF boolean_expression THEN compound_statement ELSE compound_statement
 	{
-    struct if_code_t * if_code = new_if_code();
-		$$ = if_code;
-    //We have to break down this boolean expression into statements;
-    $$->var = $2;
-    $$->true_target = $4;
-    $$->false_target = $6;
+		struct if_statement_t * if_statement = new_if_statement();
+		$$ = if_statement;
+		$$->e = $2;
+		$$->s1 = $4;
+		$$->s2 = $6;
 	}
  ;
 
@@ -607,6 +621,19 @@ assignment_statement : variable_access ASSIGNMENT expression
 		struct assignment_statement_t * assignment_statement = new_assignment_statement();
     
 		$$ = assignment_statement;
+		$$->va = $1;
+		$$->e = $3;
+		$$->code = new_code();
+		$$->code->t.assign_code = new_assign_code();
+		$$->code->t.assign_code->assigned = new_variable();
+		$$->code->t.assign_code->assigned->id = nextTempId();
+		$$->code->t.assign_code->assigned = new_variable();
+		$$->code->t.assign_code->assigned->id = $1->data.id;
+		$$->code->t.assign_code->v1 = $3->var;
+		//$$->var = $$->code->t.op_code->assigned;
+		if (DEBUG) printf("HERE IN ASSIGNMENT_STATEMENT:VA %s = EXP %s\n", $1->data.id, $3->var->id);
+
+		/*
 		switch ($1->type)
 		{
 			case VARIABLE_ACCESS_T_IDENTIFIER:
@@ -627,7 +654,7 @@ assignment_statement : variable_access ASSIGNMENT expression
 		{
 			error_type_mismatch(line_number, $1->expr->type, $3->expr->type);
 		}	
-    
+		*/
 	}
  | variable_access ASSIGNMENT object_instantiation
 	{
@@ -665,7 +692,7 @@ goto_statement : GOTO label
   {
     struct goto_code_t * goto_code = new_goto_code();
     $$ = goto_code;
-    $$->next = label;
+	$$->next = NULL;//$1
   }
 ;
 
@@ -676,11 +703,12 @@ label : identifier COLON
     $$->id = identifier;
   }
 ;
+
 variable_access : identifier
 	{
 		struct variable_access_t * variable_access = new_variable_access();
 		$$ = variable_access;
-        	$$->type = 1;
+        $$->type = 1;
 		$$->data.id = $1;
 		$$->type = VARIABLE_ACCESS_T_IDENTIFIER;
 		struct symbol * s = lookupSymbol($1, VARIABLETYPE, cur_class_scopes);
@@ -835,6 +863,8 @@ expression : simple_expression
 		$$->se1 = $1;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->var = $1->var;
+		if (DEBUG) printf("HERE IN EXP:SE %s\n", $1->var->id);
 	}
  | simple_expression relop simple_expression
 	{
@@ -845,6 +875,15 @@ expression : simple_expression
 		$$->se2 = $3;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->code = new_code();
+		$$->code->t.op_code = new_op_code();
+		$$->code->t.op_code->assigned = new_variable();
+		$$->code->t.op_code->assigned->id = nextTempId();
+		$$->code->t.op_code->op = $2;
+		$$->code->t.op_code->v1 = $1->var;
+		$$->code->t.op_code->v2 = $3->var;
+		$$->var = $$->code->t.op_code->assigned;
+		if (DEBUG) printf("HERE IN EXP:SE %s RELOP SE %s\n", $1->var->id, $3->var->id);
 	}
  ;
 
@@ -858,6 +897,8 @@ simple_expression : term
 		$$->t = $1;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->var = $1->var;
+		if (DEBUG) printf("HERE IN SE:TERM %s\n", $1->var->id);
 	}
  | simple_expression addop term
 	{
@@ -883,6 +924,16 @@ simple_expression : term
 		$$->t = $3;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->code = new_code();
+		$$->code->t.op_code = new_op_code();
+		$$->code->t.op_code->assigned = new_variable();
+		$$->code->t.op_code->assigned->id = nextTempId();
+		$$->code->t.op_code->op = $2;
+		$$->code->t.op_code->v1 = $1->var;
+		$$->code->t.op_code->v2 = $3->var;
+		$$->var = $$->code->t.op_code->assigned;
+		if (DEBUG) printf("HERE IN SE:SE %s ADDOP TERM %s\n", $1->var->id, $3->var->id);
+
 	}
  ;
 
@@ -893,6 +944,8 @@ term : factor
 		$$->f = $1;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->var = $1->var;
+		if (DEBUG) printf("HERE IN TERM:FACTOR %s\n", $1->var->id);
 	}
  | term mulop factor
 	{
@@ -903,6 +956,17 @@ term : factor
 		$$->f = $3;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->code = new_code();
+		// we have regular op
+		$$->code->t.op_code = new_op_code();
+		$$->code->t.op_code->assigned = new_variable();
+		$$->code->t.op_code->assigned->id = nextTempId();
+		$$->code->t.op_code->op = $2;
+		$$->code->t.op_code->v1 = $1->var;
+		$$->code->t.op_code->v2 = $3->var;
+		$$->var = $$->code->t.op_code->assigned;
+		if (DEBUG) printf("HERE IN TERM:TERM %s MULOP FACTOR %s\n", $1->var->id, $3->var->id);
+
 	}
  ;
 
@@ -926,6 +990,8 @@ factor : sign factor
 		$$->data.f.next = $2;
 		$$->expr = new_expression_data();
 		$$->expr->type = $2->expr->type;
+		$$->var->id = strdup($2->var->id);
+		$$->var->value = *($1) * $2->var->value;
 	}
  | primary 
 	{
@@ -935,6 +1001,8 @@ factor : sign factor
 		$$->data.p = $1;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->var->id = $1->data.va->data.id; // $1.id somehow
+		$$->var->value = 1; // $1.val somehow value number value
 	}
  ;
 

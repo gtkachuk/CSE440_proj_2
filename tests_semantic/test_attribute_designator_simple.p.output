@@ -1,3 +1,0 @@
-ERROR:30:Type mismatch between "AA" and "integer"
-ERROR:31:Type mismatch between "integer" and "AA"
-Errors detected. Exiting.

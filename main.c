@@ -3,12 +3,15 @@
  *
  * Implements an object oriented pascal compiler
  */
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include "shared.h"
 #include "symtab.h"
 #include "rulefuncs.h"
 #include "semantic.h"
-
+#include "code.h"
 
 /* Flags if any errors occured */
 int error_flag = 0;
@@ -20,9 +23,7 @@ struct args_t cmdArgs;
    yyparse() is done . */
 extern struct program_t *program;
 
-//extern void yyparse();
-extern void dprint(char * str);
-
+extern void yyparse();
 
 /* -----------------------------------------------------------------------
  * Printout on error message and exit
@@ -100,8 +101,6 @@ void parse_command_line_arguments(int argc, char **argv, struct args_t *args)
 
 }
 
-
-
 /* -----------------------------------------------------------------------
  * main function, where all hell breaks loose
  * ----------------------------------------------------------------------- 
@@ -110,28 +109,20 @@ int main(int argc, char **argv)
 {
   parse_command_line_arguments(argc, argv, &cmdArgs);
 
-  dprint("parsed command line args");
   usrdef_init();
-
-  dprint("initializied usrdef");
   symtab_init();
 
-  dprint("initialized symbol table");
   /* begin parsing */
-
   yyparse();
-  dprint("parsed yystuff");
-  if (DEBUG)
- 	symtab_print(0);
+
+  print_code(program);
+  return 0;
   /* If there were parsing errors, exit. */
   exit_on_errors();
 
   /* Perform semantic analysis */
-  dprint("starting semantic analysis");
   semantic_analysis(program);
 
-
-  dprint("performed semantic analysis");
   /* If there were errors during semantic analysis, exit. */
   exit_on_errors();
 
@@ -140,9 +131,8 @@ int main(int argc, char **argv)
     exit(0);
   }
 
-  //if (cmdArgs.verbose == 1) {
-  
-	/* print the user defined data types */
+  if (cmdArgs.verbose == 1) {
+    /* print the user defined data types */
     printf("USER DEFINED DATA TYPES:\n");
     printf("------------------------\n");
     usrdef_print();
@@ -152,9 +142,9 @@ int main(int argc, char **argv)
     printf("SYMBOL TABLE:\n");
     printf("-------------\n");
     symtab_print(0);
-  //}
+  }
 
   /* Simple, wasn't it ?!! */
-
+  
   return 0;
 }

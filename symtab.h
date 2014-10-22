@@ -9,8 +9,6 @@
 #ifndef SYMTAB_H
 #define SYMTAB_H
 
-#define DEBUG 0
-
 #include "shared.h"
 #include "usrdef.h"
 #include "rulefuncs.h"

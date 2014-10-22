@@ -23,7 +23,7 @@ struct symbol * addSymbol(char * _name, int _lineNumber, int _symbolType, int _t
 {
 	if ((strcasecmp(_scope->id, "NOSCOPE") == 0)) return NULL;
 	struct identifier_list_t *temp = _scope;
-	if(DEBUG) printf("\n#################\nADDING: %s\nTYPE: %s SCOPE ID: %s\n-----------------------\n", _name, _type, temp->id);
+	//if(DEBUG) printf("\n#################\nADDING: %s\nTYPE: %s SCOPE ID: %s\n-----------------------\n", _name, _type, temp->id);
 	struct symbol *s;
 	unsigned hashval;
 	if ((s = lookupSymbol(_name, _symbolType, _scope)) == NULL)
@@ -82,7 +82,7 @@ struct symbol * addDataType(char * _name, int _lineNumber)
 struct symbol * addVariable(char * _name, int _lineNumber, struct type_denoter_t * _type, struct identifier_list_t * _scope)
 {
 	struct symbol * s;
-	if (DEBUG) printf("IN ADD VARIABLE TYPE: %s TYPE CODE: %d", _type->name, _type->type);
+	//if (DEBUG) printf("IN ADD VARIABLE TYPE: %s TYPE CODE: %d", _type->name, _type->type);
 	struct type_denoter_t  *tempType = _type;
 //	if (tempType->type == TYPE_DENOTER_T_ARRAY_TYPE)
 	{
@@ -108,7 +108,7 @@ struct symbol * addVariable(char * _name, int _lineNumber, struct type_denoter_t
 	}
 	if (symbolType == NOTYPEFOUND)
 	{
-		if (DEBUG) printf("\nTYPE NOT FOUND: %s\n", _type->name);
+		//if (DEBUG) printf("\nTYPE NOT FOUND: %s\n", _type->name);
 		error_type_not_defined(_lineNumber, _type->name);
 		return NULL;
 	}
@@ -207,17 +207,17 @@ struct symbol * lookupSymbol(char * _name, int _symbolType, struct identifier_li
 		{
 			struct identifier_list_t * foundScope;
 			foundScope = s->scope;
-			if (DEBUG) printf("\n\nIN LOOKUP LOOP for %s\n", foundScope->id);
+			//if (DEBUG) printf("\n\nIN LOOKUP LOOP for %s\n", foundScope->id);
 			while (tempScope != NULL)
 			{
-				if (DEBUG) printf("\n\n%s -=-=-= temp/found -=-=-= %s\n", tempScope->id, foundScope->id);
+				//if (DEBUG) printf("\n\n%s -=-=-= temp/found -=-=-= %s\n", tempScope->id, foundScope->id);
 				if (strcasecmp(tempScope->id, foundScope->id) == 0)
 				{
 					return s;
 				}
 				tempScope = tempScope->next;
 			}	
-			if (DEBUG) printf("OUT OF LOOKUP LOOP\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n");
+			//if (DEBUG) printf("OUT OF LOOKUP LOOP\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n");
 		}
 	}
     return NULL;

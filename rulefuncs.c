@@ -7,6 +7,9 @@
 #include "rulefuncs.h"
 #include "shared.h"
 
+// used for holding temp var numbers for complex expression evaluation into 
+// 3 address
+int tempVarIndex = 0;
 
 
 /* ----------------------------------------------------------------------- 
@@ -424,7 +427,7 @@ struct expression_t *new_expression()
   e->se1 = NULL;
   e->relop = -1;
   e->se2 = NULL;
-
+  e->code = NULL;
   return e;
 }
 
@@ -453,10 +456,11 @@ struct code_t* new_code()
   c = (struct code_t*) malloc(sizeof(struct code_t));
   CHECK_MEM_ERROR(c)
   c->type = -1;
-  c->t.op_code = NULL;
-  c->t.label_code = NULL;
-  c->t.goto_code = NULL;
-  c->t.if_code = NULL;
+//  dont think these are necessary
+//  c->t.op_code = NULL;
+//  c->t.label_code = NULL;
+//  c->t.goto_code = NULL;
+//  c->t.if_code = NULL;
   c->next = NULL;
   return c;
 }
@@ -467,8 +471,16 @@ struct op_code_t* new_op_code(){
   CHECK_MEM_ERROR(oc);
   oc->v1 = NULL;
   oc->v2 = NULL;
-  oc->relop = -1;
+  oc->op = -1;
   return oc;
+}
+
+struct assign_code_t* new_assign_code(){
+	struct assign_code_t* ac;
+	ac = (struct assign_code_t*) malloc(sizeof(struct assign_code_t));
+	ac->assigned = NULL;
+	ac->v1 = NULL;
+	return ac;
 }
 
 struct label_t * new_label(){
@@ -839,7 +851,7 @@ struct factor_t *new_factor()
     malloc(sizeof(struct factor_t));
   CHECK_MEM_ERROR(f)
   f->type = -1;
-
+  f->var = new_variable();
   return f;
 }
 
@@ -1117,4 +1129,16 @@ struct expression_data_t *new_expression_data()
  ed->type = NULL; 
 
  return ed;
+}
+
+char * nextTempId()
+{
+	{
+		char *s;
+
+		s = (char *)malloc(MAX_NEW_CHAR_SIZE);
+		sprintf(s, "temp%d", tempVarIndex++);
+		if (DEBUG) printf("NEW TEMP VAR IS %s\n", s);
+		return s;
+	}
 }
