@@ -345,7 +345,7 @@ struct print_statement_t{
 
 struct function_block_t{
   struct variable_declaration_list_t *vdl;
-  struct code_t *ss;
+  struct statement_sequence_t *ss;
 };
 
 struct statement_sequence_t;
@@ -383,6 +383,7 @@ struct statement_sequence_t{
 #define T_IF_CODE 3
 #define T_LABEL_CODE 4
 #define T_ASSIGN_CODE 5
+#define T_DUMMY_CODE 6
 struct code_t{
   union{
     struct op_code_t *op_code;
@@ -428,6 +429,17 @@ struct if_code_t{
   struct variable_t *var;
   struct code_t * true_target;
   struct code_t * false_target; 
+};
+
+struct basic_block_t{
+  struct code_t *entry;
+  struct code_t *exit;
+  int num_incoming;
+};
+
+struct cfg_t{
+  struct basic_block_t* entry;
+  struct basic_block_t* exit;
 };
 
 struct variable_t{

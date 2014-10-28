@@ -624,6 +624,7 @@ assignment_statement : variable_access ASSIGNMENT expression
 		$$->va = $1;
 		$$->e = $3;
 		$$->code = new_code();
+    $$->code->type = T_ASSIGN_CODE;
 		$$->code->t.assign_code = new_assign_code();
 		$$->code->t.assign_code->assigned = new_variable();
 		$$->code->t.assign_code->assigned->id = nextTempId();
@@ -696,12 +697,24 @@ goto_statement : GOTO label
   }
 ;
 
-label : identifier COLON
+label : identifier COLON statement
+  {
+    //we can match label id to statement* or code*
+    //make the first code of the statement - T_LABEL_CODE 
+    struct label_t* label = new_label();
+    $$ = label;
+    //backwards assignment. will this work?
+    $3->code->type = T_LABEL_CODE;
+    $3->code->t.label_code = label; 
+    $$->id = $1;
+  }
+  | identifier COLON
   {
     struct label_t* label = new_label();
     $$ = label;
-    $$->id = identifier;
+    $$->id = $1;
   }
+
 ;
 
 variable_access : identifier

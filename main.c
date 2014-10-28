@@ -7,10 +7,12 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+
 #include "shared.h"
 #include "symtab.h"
 #include "rulefuncs.h"
 #include "semantic.h"
+#include "optimization.h"
 #include "code.h"
 
 /* Flags if any errors occured */
@@ -24,6 +26,7 @@ struct args_t cmdArgs;
 extern struct program_t *program;
 
 extern void yyparse();
+//extern void optimize(struct program_t *p);
 
 /* -----------------------------------------------------------------------
  * Printout on error message and exit
@@ -116,6 +119,7 @@ int main(int argc, char **argv)
   yyparse();
 
   print_code(program);
+  optimize(program);
   return 0;
   /* If there were parsing errors, exit. */
   exit_on_errors();

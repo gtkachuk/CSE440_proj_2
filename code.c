@@ -335,7 +335,7 @@ void print_code_term(struct term_t *t)
 		}
 		// why is the term getting printed twice..
 		if (DEBUG) printf("%d\n", t);
-		int i = 1 / (count - 1);
+		//int i = 1 / (count - 1);
 		count++;
 		temp = temp->next;
 	}
