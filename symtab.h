@@ -24,6 +24,12 @@
 #define VARIABLETYPE 4
 #define VARIABLEARRAYTYPE 5
 
+
+#define NOTYPEFOUND -1
+
+#define MAXSYMBOLS 701
+#define HASHSIZE 701
+
 #define _INT 10
 #define _REAL 11
 #define _BOOL 12
@@ -46,6 +52,17 @@ struct symbol
         struct symbol * next; // this is used for the hash just in case something hashes out the same
 };
 
+struct variable_table
+{
+	struct variable_t * t[MAXSYMBOLS];
+	int current_index;
+};
+
+struct expression_table
+{
+	struct op_code_t * t[MAXSYMBOLS];
+	int current_index;
+};
 
 void symtab_init();
 void symtab_print(int numOfTabs);
@@ -63,14 +80,12 @@ struct symbol * addVariable(char * _name, int _lineNumber, struct type_denoter_t
 struct symbol * addFunction(char * _name, int _lineNumber, struct identifier_list_t * _scope);
 struct symbol * addClass(char * _name, int _lineNumber, struct variable_declaration_list_t * _vdl, struct identifier_list_t * _scope);
 void delend(struct identifier_list_t **l);
-int valueNumberForVar(struct variable_t * v);
-int valueNumberIndexForVar(struct variable_t * v);
-int valueNumberForExpression(struct op_code_t * e);
-int valueNumberIndexForExpression(struct op_code_t * e);
+int valueNumberForVar(struct variable_table * vt, struct variable_t * v);
+int valueNumberForExpression(struct expression_table * et, struct op_code_t * e);
 int lineNumberForLabel(struct label_t * l);
 struct label_t * labelForID(char * id);
-void addvariable(struct variable_t * v);
-void addExpression(struct op_code_t * e);
+void addvariable(struct variable_table * vt, struct variable_t * v);
+void addExpression(struct expression_table * et, struct op_code_t * e);
 void addLabel(struct label_t * l);
 void variable_table_print();
 void expression_table_print();

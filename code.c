@@ -98,7 +98,7 @@ void print_code_expression(struct expression_t *e)
 
 void print_code_factor(struct factor_t *f)
 {
-	if (DEBUG) printf("FACTOR VARIABLE %s : %d\n", f->var->id, f->var->val.value);
+
 }
 
 void print_code_formal_parameter_list(struct formal_parameter_section_list_t *fpsl)
@@ -268,18 +268,18 @@ void print_code_statement(struct statement_t *s)
 				printf("op stmt: %s = %s %s %s\n",
 					temp_code->t.op_code->assigned->id,
 					temp_code->t.op_code->v1->type == CONSTANT_TYPE ?
-						inttostring(temp_code->t.op_code->v2->val.value) :
+						inttostring(temp_code->t.op_code->v2->val.constant_value) :
 						temp_code->t.op_code->v1->id,
 					opToChar(temp_code->t.op_code->op),
 					temp_code->t.op_code->v2->type == CONSTANT_TYPE ?
-						inttostring(temp_code->t.op_code->v2->val.value) :
+						inttostring(temp_code->t.op_code->v2->val.constant_value) :
 						temp_code->t.op_code->v2->id);
 				break;
 			case T_ASSIGN_CODE:
 				printf("assign stmt: %s := %s \n\n",
 					temp_code->t.assign_code->assigned->id,
 					temp_code->t.assign_code->v1->type == CONSTANT_TYPE ?
-						inttostring(temp_code->t.assign_code->v1->val.value) :
+						inttostring(temp_code->t.assign_code->v1->val.constant_value) :
 						temp_code->t.assign_code->v1->id);
 				break;
 			case T_WHILE_CODE:
@@ -288,11 +288,11 @@ void print_code_statement(struct statement_t *s)
 				if (temp_code->type == T_IF_CODE) printf("\n BEGIN OF IF ------------------------\n\n");
 				printf("cond stmt: %s %s %s -------------------\n\n",
 					temp_code->t.if_code->v1->type == CONSTANT_TYPE ?
-						inttostring(temp_code->t.if_code->v2->val.value) :
+						inttostring(temp_code->t.if_code->v2->val.constant_value) :
 						temp_code->t.if_code->v1->id,
 					opToChar(temp_code->t.if_code->op),
 					temp_code->t.if_code->v2->type == CONSTANT_TYPE ?
-						inttostring(temp_code->t.if_code->v2->val.value) :
+						inttostring(temp_code->t.if_code->v2->val.constant_value) :
 						temp_code->t.if_code->v2->id);
 				printf("\n\tTRUE BRANCH:\n\n");
 				{

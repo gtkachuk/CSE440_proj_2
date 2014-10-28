@@ -1060,7 +1060,7 @@ factor : sign factor
 		$$->expr = new_expression_data();
 		$$->expr->type = $2->expr->type;
 		$$->var->id = strdup($2->var->id);
-		$$->var->val.value = *($1) * $2->var->val.value;
+		$$->var->val.constant_value = *($1) * $2->var->val.constant_value;
 		$$->var->type = VARIABLE_TYPE;
 		if (DEBUG) printf("HERE IN FACTOR: SIGN FACTOR %s\n", $2->var->id);
 	}
@@ -1099,7 +1099,7 @@ primary : variable_access
 		$$->expr->val = $1->expr->val;
 		$$->var->type = CONSTANT_TYPE;
 		$$->var->id = inttostring($1->ui);
-		$$->var->val.value = $1->ui;
+		$$->var->val.constant_value = $1->ui;
 	}
  | function_designator
 	{
