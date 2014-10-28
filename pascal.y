@@ -719,7 +719,6 @@ label: identifier COLON
 	$$->line_number = line_number;
 	addLabel(label);
   }
-
 ;
 
 variable_access : identifier
