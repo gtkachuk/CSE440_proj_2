@@ -8,6 +8,7 @@
 
 #include "symtab.h"
 #include "error.h"
+#include "code.h"
 
 #define NOTYPEFOUND -1
 
@@ -55,12 +56,14 @@ int lineNumberForLabel(struct label_t * l)
 
 struct label_t * labelForID(char * id)
 {
-	struct label_t * l;
-	int i = 0;
-	for (i; i < MAXSYMBOLS; i++)
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
 	{
-		l = labelTable[i];
-		if (l == NULL) continue;
+		if (labelTable[i] == NULL)
+		{
+			continue;
+		}
+		struct label_t * l = labelTable[i];
 		if (strcasecmp(l->id, id) == 0)
 		{
 			return l;
@@ -368,6 +371,48 @@ char * convertType(int i)
 		}	
 	}
 	printf("\n\n\n");
+}
+
+void variable_table_print()
+{
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
+	{
+		if (variableTable[i] == NULL)
+		{
+			continue;
+		}
+		struct variable_t * v = variableTable[i];
+		printf("variable %d: %s\n", i, v->id);
+	}
+}
+
+void expression_table_print()
+{
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
+	{
+		if (expressionTable[i] == NULL)
+		{
+			continue;
+		}
+		struct op_code_t * e = expressionTable[i];
+		printf("expression %d: %s %s %s\n", i, e->v1->id, opToChar(e->op), e->v2->id);
+	}
+}
+
+void label_table_print()
+{
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
+	{
+		if (labelTable[i] == NULL)
+		{
+			continue;
+		}
+		struct label_t * l = labelTable[i];
+		printf("LABEL %d: %s\n", i, l->id);
+	}
 }
 
 void delend(struct identifier_list_t **l)

@@ -72,4 +72,7 @@ struct label_t * labelForID(char * id);
 void addvariable(struct variable_t * v);
 void addExpression(struct op_code_t * e);
 void addLabel(struct label_t * l);
+void variable_table_print();
+void expression_table_print();
+void label_table_print();
 #endif
