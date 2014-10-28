@@ -90,6 +90,19 @@ void process_code(struct statement_sequence_t *ss){
         bb_idx++;
         entry = current->next;
       }
+      if (current->type == T_WHILE_CODE)
+      {
+        if (ss->s->type != STATEMENT_T_WHILE)
+        {
+          printf("CODE IS WHILE BUT STATEMENT IS NOT WHILE\n");
+          exit_on_errors();
+        }
+        exit = current;
+        bb_list[bb_idx] = new_bb(entry,exit);
+        bb_idx++;
+        entry = current->next;
+      }
+
       //if the next code is label it can be target of many codes --> block cutoff unless it only has one target. need to figure out how to keep track of this.
       //else if (current->type == T_LABEL_CODE)  
       //{
@@ -106,6 +119,12 @@ void process_code(struct statement_sequence_t *ss){
       printf("Process true and false branches\n");
       process_code(ss->s->data.is->s1);
       process_code(ss->s->data.is->s2);
+      process_code(ss->next);
+      break;
+    }
+    if (ss->s->type == STATEMENT_T_WHILE){
+      printf("Process while loop\n");
+      process_code(ss->s->data.ws->s);
       process_code(ss->next);
       break;
     }
@@ -187,7 +206,16 @@ void print_line(struct code_t* code){
         break;
       }
       case (T_IF_CODE):{
-        printf("if\n");
+        printf("if %s %s %s\n", code->t.if_code->v1->id,
+                                opToChar(code->t.if_code->op),
+                                code->t.if_code->v2->id);
+
+        break;
+      }
+      case (T_WHILE_CODE):{
+        printf("while %s %s %s\n", code->t.if_code->v1->id,
+                                opToChar(code->t.if_code->op),
+                                code->t.if_code->v2->id);
         break;
       }
       case (T_ASSIGN_CODE):{
