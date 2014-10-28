@@ -91,8 +91,9 @@ struct expression_data_t *new_expression_data();
 struct variable_t * new_variable();
 struct op_code_t * new_op_code();
 struct assign_code_t * new_assign_code();
+struct goto_code_t * new_goto_code();
 char * nextTempId();
-
-
+struct goto_statement_t *new_goto_statement();
+struct label_t * new_label();
 #endif
 

@@ -5,7 +5,7 @@
 #include "symtab.h"
 #include "code.h"
 
-int count = 0;
+int statement_number = 0;
 
 void print_code(struct program_t *p)
 {
@@ -45,11 +45,14 @@ void print_code_assignment_statement(struct assignment_statement_t *as)
 	if (as == NULL)
 		return;
 	print_code_expression(as->e);
-	if (as->code != NULL)
+	struct code_t * temp_code = as->code;
+	if (temp_code != NULL)
 	{
-		printf("%s = %s\n",
-			as->code->t.assign_code->assigned->id,
-			as->code->t.assign_code->v1->id);
+		GOTO_END_OF_LIST(temp_code);
+
+		//	if (DEBUG) printf("IN A_STMT: %s = %s\n",
+		//		temp_code->t.assign_code->assigned->id,
+		//		temp_code->t.assign_code->v1->id);
 	}
 }
 
@@ -95,7 +98,7 @@ void print_code_expression(struct expression_t *e)
 
 void print_code_factor(struct factor_t *f)
 {
-	if (DEBUG) printf("FACTOR VARIABLE %s : %d\n", f->var->id, f->var->value);
+	if (DEBUG) printf("FACTOR VARIABLE %s : %d\n", f->var->id, f->var->val.value);
 }
 
 void print_code_formal_parameter_list(struct formal_parameter_section_list_t *fpsl)
@@ -242,29 +245,86 @@ void print_code_sign(int i)
 
 void print_code_simple_expression(struct simple_expression_t *se)
 {
-	struct simple_expression_t * temp = se;
-	while (temp != NULL)
-	{
-		print_code_term(temp->t);
-		if (se->code != NULL)
-		{
-			printf("%s = %s %s %s\n",
-				se->code->t.op_code->assigned->id,
-				se->code->t.op_code->v1->id,
-				opToChar(se->code->t.op_code->op),
-				se->code->t.op_code->v2->id);
-		}
-		temp = temp->next;
-	}
 
 }
 
 void print_code_statement(struct statement_t *s)
 {
-	struct statement_t *temp = s;
+	int i;
+
+	int current_statement_number = statement_number++;
+	struct statement_t * temp = s;
 	if (temp == NULL){
 		return;
 	}
+	if (DEBUG) printf("======== BEGIN OF STATEMENT %d ========\n\n", current_statement_number);
+	if (DEBUG && s->type == STATEMENT_T_LABEL) printf("+++ LABEL: %s +++\n\n", s->data.l->id);
+	struct code_t * temp_code = temp->code;
+	while (temp_code != NULL)
+	{
+		switch (temp_code->type)
+		{
+			case T_OP_CODE:
+				printf("op stmt: %s = %s %s %s\n",
+					temp_code->t.op_code->assigned->id,
+					temp_code->t.op_code->v1->type == CONSTANT_TYPE ?
+						inttostring(temp_code->t.op_code->v2->val.value) :
+						temp_code->t.op_code->v1->id,
+					opToChar(temp_code->t.op_code->op),
+					temp_code->t.op_code->v2->type == CONSTANT_TYPE ?
+						inttostring(temp_code->t.op_code->v2->val.value) :
+						temp_code->t.op_code->v2->id);
+				break;
+			case T_ASSIGN_CODE:
+				printf("assign stmt: %s := %s \n\n",
+					temp_code->t.assign_code->assigned->id,
+					temp_code->t.assign_code->v1->type == CONSTANT_TYPE ?
+						inttostring(temp_code->t.assign_code->v1->val.value) :
+						temp_code->t.assign_code->v1->id);
+				break;
+			case T_WHILE_CODE:
+				printf("\nBEGIN OF WHILE -----------------------\n\n");
+			case T_IF_CODE:
+				if (temp_code->type == T_IF_CODE) printf("\n BEGIN OF IF ------------------------\n\n");
+				printf("cond stmt: %s %s %s -------------------\n\n",
+					temp_code->t.if_code->v1->type == CONSTANT_TYPE ?
+						inttostring(temp_code->t.if_code->v2->val.value) :
+						temp_code->t.if_code->v1->id,
+					opToChar(temp_code->t.if_code->op),
+					temp_code->t.if_code->v2->type == CONSTANT_TYPE ?
+						inttostring(temp_code->t.if_code->v2->val.value) :
+						temp_code->t.if_code->v2->id);
+				printf("\n\tTRUE BRANCH:\n\n");
+				{
+					struct statement_sequence_t * t_branch = temp->data.is->s1;
+					if (t_branch != NULL)
+					{
+						print_code_statement_sequence(t_branch);
+					}
+				}
+				if (temp_code->type == T_WHILE_CODE)
+				{
+					printf("\nEND OF WHILE ------------------------\n\n");
+					break;
+				}
+				printf("\n\tFALSE BRANCH:\n\n");
+				{
+					struct statement_sequence_t * f_branch = temp->data.is->s2;
+					if (f_branch != NULL)
+					{
+						print_code_statement_sequence(f_branch);
+					}
+				}
+				printf("\n END OF IF --------------------------\n\n");
+				break;
+			case T_GOTO_CODE:
+				printf("GOTO %s\n\n", temp_code->t.goto_code->label_id);
+			default:
+				break;
+		}
+		temp_code = temp_code->next;
+	}
+	if (DEBUG) printf("========= END OF STATEMENT %d =========\n\n", current_statement_number);
 
 	switch (temp->type)
 	{
@@ -298,14 +358,7 @@ void print_code_statement(struct statement_t *s)
 
 void print_code_statement_part(struct statement_sequence_t *ss)
 {
-	
-	struct statement_sequence_t * temp = ss;
-
-	while (temp != NULL){
-		print_code_statement(temp->s);
-		temp = temp->next;
-	}
-	
+	print_code_statement_sequence(ss);
 }
 
 void print_code_statement_sequence(struct statement_sequence_t *ss)
@@ -325,18 +378,16 @@ void print_code_term(struct term_t *t)
 	{
 		print_code_factor(temp->f);
 		print_code_mulop(temp->mulop);
-		if (t->code != NULL)
+		struct code_t * temp_code = t->code;
+		while (temp_code != NULL)
 		{
-			printf("%s = %s %s %s\n",
-				t->code->t.op_code->assigned->id,
-				t->code->t.op_code->v1->id,
-				opToChar(t->code->t.op_code->op),
-				t->code->t.op_code->v2->id);
+			printf("IN TERM: %s = %s %s %s\n",
+				temp_code->t.op_code->assigned->id,
+				temp_code->t.op_code->v1->id,
+				opToChar(temp_code->t.op_code->op),
+				temp_code->t.op_code->v2->id);
+			temp_code = temp_code->next;
 		}
-		// why is the term getting printed twice..
-		if (DEBUG) printf("%d\n", t);
-		int i = 1 / (count - 1);
-		count++;
 		temp = temp->next;
 	}
 }
@@ -435,6 +486,16 @@ char * opToChar(int op)
 			return "/";
 		case MOD:
 			return "%";
+		case EQUAL:
+			return "=";
+		case GE:
+			return ">=";
+		case GT:
+			return ">";
+		case LE:
+			return "<=";
+		case LT:
+			return "<";
 	}
 	return NULL;
 }

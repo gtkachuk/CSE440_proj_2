@@ -63,4 +63,13 @@ struct symbol * addVariable(char * _name, int _lineNumber, struct type_denoter_t
 struct symbol * addFunction(char * _name, int _lineNumber, struct identifier_list_t * _scope);
 struct symbol * addClass(char * _name, int _lineNumber, struct variable_declaration_list_t * _vdl, struct identifier_list_t * _scope);
 void delend(struct identifier_list_t **l);
+int valueNumberForVar(struct variable_t * v);
+int valueNumberIndexForVar(struct variable_t * v);
+int valueNumberForExpression(struct op_code_t * e);
+int valueNumberIndexForExpression(struct op_code_t * e);
+int lineNumberForLabel(struct label_t * l);
+struct label_t * labelForID(char * id);
+void addvariable(struct variable_t * v);
+void addExpression(struct op_code_t * e);
+void addLabel(struct label_t * l);
 #endif

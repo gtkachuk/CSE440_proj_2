@@ -18,7 +18,73 @@ int currentIndex = 10;
 
 struct symbol * symbolHash[MAXSYMBOLS];
 
-struct symbol * addSymbol(char * _name, int _lineNumber, int _symbolType, int _typeIndex, char * _type, 
+int current_variable = 0;
+struct variable_t * variableTable[MAXSYMBOLS];
+
+int current_expression = 0; 
+struct op_code_t * expressionTable[MAXSYMBOLS];
+
+int current_label = 0;
+struct label_t * labelTable[MAXSYMBOLS];
+
+
+int valueNumberForVar(struct variable_t * v)
+{
+
+}
+
+int valueNumberIndexForVar(struct variable_t * v)
+{
+
+}
+
+int valueNumberForExpression(struct op_code_t * e)
+{
+
+}
+
+int valueNumberIndexForExpression(struct op_code_t * e)
+{
+
+}
+
+int lineNumberForLabel(struct label_t * l)
+{
+
+}
+
+struct label_t * labelForID(char * id)
+{
+	struct label_t * l;
+	int i = 0;
+	for (i; i < MAXSYMBOLS; i++)
+	{
+		l = labelTable[i];
+		if (l == NULL) continue;
+		if (strcasecmp(l->id, id) == 0)
+		{
+			return l;
+		}
+	}
+	return NULL;
+}
+
+void addvariable(struct variable_t * v)
+{
+	variableTable[current_variable++] = v;
+}
+
+void addExpression(struct op_code_t * e)
+{
+	expressionTable[current_expression++] = e;
+}
+
+void addLabel(struct label_t * l)
+{
+	labelTable[current_label++] = l;
+}
+
+struct symbol * addSymbol(char * _name, int _lineNumber, int _symbolType, int _typeIndex, char * _type,
 			  struct variable_declaration_list_t * _vdl, struct identifier_list_t * _scope)
 {
 	if ((strcasecmp(_scope->id, "NOSCOPE") == 0)) return NULL;
@@ -149,28 +215,6 @@ int lookupType(char * _name)
 		return TYPE_DENOTER_T_CLASS_TYPE;
 }
 
-/*
-int lookupTypeString(int _typeIndex)
-{
-	int i;
-	for (i = 0; i < MAXSYMBOLS; i++)
-	{
-		if (symbolHash[i] == NULL)
-		{
-			continue;
-		}
-		struct symbol * s = symbolHash[i];
-		while (s != NULL)
-		{
-			if (s->typeIndex == _typeIndex &&
-			    (s->symbolType == DATATYPE ||
-			     s->symbolType == CLASSTYPE))
-				return s->name;
-			s = s->next;
-		}	
-	}
-}
-*/
 int lookupTypeIndex(char * _name, struct identifier_list_t * _scope)
 {
 	struct symbol * s;
@@ -195,6 +239,7 @@ int lookupInClass(char * _name, struct class_list_t * scope)
     
     
 }
+
 struct symbol * lookupSymbol(char * _name, int _symbolType, struct identifier_list_t * _scope)
 {
     	struct symbol * s;
@@ -277,12 +322,6 @@ void symtab_init()
 
 }
 
-
-
-/* ------------------------------------------------------------
- * Prints the contents of the symbol table
- * ------------------------------------------------------------
- */
 char * convertType(int i)
 {
 	switch (i)
@@ -307,7 +346,10 @@ char * convertType(int i)
 	}
 }
 
-void symtab_print(int numOfTabs)
+/* ------------------------------------------------------------
+* Prints the contents of the symbol table
+* ------------------------------------------------------------
+*/void symtab_print(int numOfTabs)
 {
 	int i;
 	printf("\n\n\n%55s\t%15s\t%15s\t%15s\t%30s%8s\n", "Type : Name", "Hash Value", "Type Index", "Type", "Scope", "Line #");
@@ -346,3 +388,5 @@ void delend(struct identifier_list_t **l)
     tmp->next = NULL;
     return;
 }
+
+

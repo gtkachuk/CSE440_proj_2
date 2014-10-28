@@ -412,7 +412,20 @@ struct print_statement_t *new_print_statement()
   return ps;
 }
 
+/* -----------------------------------------------------------------------
+* Returns a pointer to a new goto_statement
+* -----------------------------------------------------------------------
+*/
+struct goto_statement_t *new_goto_statement()
+{
+	struct goto_statement_t *gs;
 
+	gs = (struct goto_statement_t *) malloc(sizeof(struct goto_statement_t));
+	CHECK_MEM_ERROR(gs)
+	gs->code = NULL;
+
+	return gs;
+}
 
 /* ----------------------------------------------------------------------- 
  * Returns a pointer to a new expression
@@ -455,7 +468,8 @@ struct code_t* new_code()
   struct code_t *c;
   c = (struct code_t*) malloc(sizeof(struct code_t));
   CHECK_MEM_ERROR(c)
-  c->type = -1;
+// default to op_code to handle the simple expressions that have to building code.
+c->type = T_OP_CODE;
 //  dont think these are necessary
 //  c->t.op_code = NULL;
 //  c->t.label_code = NULL;
@@ -471,7 +485,7 @@ struct op_code_t* new_op_code(){
   CHECK_MEM_ERROR(oc);
   oc->v1 = NULL;
   oc->v2 = NULL;
-  oc->op = -1;
+  oc->op = T_ASSIGN_CODE;
   return oc;
 }
 
@@ -488,6 +502,8 @@ struct label_t * new_label(){
   l = (struct label_t*) malloc(sizeof(struct label_t));
   CHECK_MEM_ERROR(l);
   l->id = NULL;
+  l->line_number = -1;
+  l->next_ss = NULL;
   return l;
 }
 
@@ -502,7 +518,9 @@ struct if_code_t * new_if_code(){
   struct if_code_t* ic;
   ic = (struct if_code_t*)malloc(sizeof(struct if_code_t));
   CHECK_MEM_ERROR(ic);
-  ic->var = NULL;
+  ic->v1 = NULL;
+  ic->v2 = NULL;
+  ic->op = -1;
   ic->true_target = NULL;
   ic->false_target = NULL;
   return ic;
@@ -512,7 +530,8 @@ struct variable_t * new_variable(){
   struct variable_t *var;
   var = (struct variable_t*) malloc(sizeof(struct variable_t));
   var->id = NULL;
-  var->value = 0;
+  var->val.value = 0;
+  var->val.value_number = -1;
   return var;
 }
 
@@ -883,7 +902,7 @@ struct primary_t *new_primary()
  p = (struct primary_t *) malloc(sizeof(struct primary_t));
  CHECK_MEM_ERROR(p)
  p->type = -1;
-
+ p->var = new_variable();
  return p;
 }
 
