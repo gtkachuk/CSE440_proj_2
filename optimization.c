@@ -35,11 +35,7 @@ void optimize(struct program_t *p)
   bb_idx = 0;
   //if statement sequence has code
   //get first code statement, start building basic blocks
-  while(ss != NULL){
-    process_code(ss->s->code);
-    ss = ss->next;
-    
-  }
+  process_code(ss);
   print_bb_list();
   build_cfg();
 
@@ -64,38 +60,62 @@ struct cfg_t *new_cfg(){
 //-----------------------------------------------------
 //recursively build all basic blocks
 //-----------------------------------------------------
-void process_code(struct code_t *code){
-  //struct code_t *current = temp_cl->cb->fdl->fd->fb->ss;
-  struct code_t *current = code;
-  struct code_t *entry = code; 
+void process_code(struct statement_sequence_t *ss){
+  struct code_t *current = ss->code;
+  struct code_t *entry = current; 
   struct code_t *exit = NULL;
   struct code_t *prev = NULL;
-  //continue as long as we have child code (if has true and false branches)
-  while(current != NULL){
-    if (current->type == T_IF_CODE)
-    {
-      exit = current;
-      bb_list[bb_idx] = new_bb(entry,exit);
-      bb_idx++;
-      process_code(current->t.if_code->true_target);
-      process_code(current->t.if_code->false_target);
-      //here we assume that 'if' has its own true and false branch pointers, and also code->next points to the first code after the 'if' block. 
-      entry = current->next;
-    }
-    //if the next code is label it can be target of many codes --> block cutoff unless it only has one target. need to figure out how to keep track of this.
-    ///else if (current->type == T_LABEL_CODE)  
-    ///{
-    ///  exit = prev;
-    ///  bb_list[bb_idx] = new_bb(entry,exit);
-    ///  bb_idx++;
-    ///}
-    if (current->next == NULL) {
+  //for each statement
+  while(ss!= NULL){
+    
+    current = ss->code;
 
-      bb_list[bb_idx] = new_bb(entry, current);
+    //continue chain of codes
+    if(prev != NULL)
+      prev->next = current;
+    //for each code in this statement
+    while(current != NULL){
+      print_line(current);
+      //basic block end with if statement
+      if (current->type == T_IF_CODE)
+      {
+        if (ss->s->type != STATEMENT_T_IF)
+        {
+          printf("CODE IS IF BUT STATEMENT IS NOT IF\n");
+          exit_on_errors();
+        }
+        exit = current;
+
+        bb_list[bb_idx] = new_bb(entry,exit);
+        bb_idx++;
+        entry = current->next;
+      }
+      //if the next code is label it can be target of many codes --> block cutoff unless it only has one target. need to figure out how to keep track of this.
+      //else if (current->type == T_LABEL_CODE)  
+      //{
+      //  exit = prev;
+      //  bb_list[bb_idx] = new_bb(entry,exit);
+      //  bb_idx++;
+      //}
+      prev = current;
+      current = current->next;
+    }
+    //process branches as statement sequences
+    if (ss->s->type == STATEMENT_T_IF)
+    {
+      printf("Process true and false branches\n");
+      process_code(ss->s->data.is->s1);
+      process_code(ss->s->data.is->s2);
+      process_code(ss->next);
+      break;
+    }
+    //last statement in sequence - bb completed
+    if(ss->next == NULL)
+    {
+      bb_list[bb_idx] = new_bb(entry, prev);
       bb_idx++;
     }
-    prev = current;
-    current = current->next;
+    ss = ss->next;
   }
 }
 
@@ -143,7 +163,9 @@ void print_bb_list(){
   for (i = 0; i<bb_idx; i++)
   {
     printf("\nBASIC BLOCK %d\n", i);
+    printf("Entry:\n");
     print_line(bb_list[i]->entry);
+    printf("Exit:\n");
     print_line(bb_list[i]->exit);
   }
 }
@@ -152,20 +174,20 @@ void print_line(struct code_t* code){
   switch(code->type)
     {
       case (T_OP_CODE):{
-        printf("%s = %s op(%d) %s\n", 
+        printf("%s = %s %s %s\n", 
                 code->t.op_code->assigned->id, 
                 code->t.op_code->v1->id, 
-                code->t.op_code->op, 
+                opToChar(code->t.op_code->op), 
                 code->t.op_code->v2->id);        
 
         break;
       }
       case (T_GOTO_CODE):{
-        printf("goto");
+        printf("goto\n");
         break;
       }
       case (T_IF_CODE):{
-        printf("if");
+        printf("if\n");
         break;
       }
       case (T_ASSIGN_CODE):{
