@@ -5,7 +5,7 @@
 
 #ifndef SHARED_H
 #define SHARED_H
-#define DEBUG 0
+#define DEBUG 1
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -218,6 +218,7 @@ struct primary_t{
     }p;
   }data;
   struct expression_data_t *expr;
+  struct variable_t * var;
 };
 
 #define FACTOR_T_SIGNFACTOR 1
@@ -343,6 +344,16 @@ struct print_statement_t{
   struct code_t * code;
 };
 
+struct goto_statement_t{
+	struct code_t * code;
+};
+
+struct label_t{
+	char * id;
+	int line_number;
+	struct statement_sequence * next_ss;
+};
+
 struct function_block_t{
   struct variable_declaration_list_t *vdl;
   struct statement_sequence_t *ss;
@@ -354,6 +365,8 @@ struct statement_sequence_t;
 #define STATEMENT_T_IF 3
 #define STATEMENT_T_WHILE 4
 #define STATEMENT_T_PRINT 5
+#define STATEMENT_T_GOTO 6
+#define STATEMENT_T_LABEL 7
 struct statement_t {
   int type; /* 1 - assignment_statement
 	     * 2 - statement_sequence
@@ -368,6 +381,8 @@ struct statement_t {
     struct if_statement_t *is;
     struct while_statement_t *ws;
     struct print_statement_t *ps;
+	struct goto_statement_t *gs;
+	struct label_t * l;
   }data;
   int line_number;
   struct code_t * code;
@@ -376,20 +391,21 @@ struct statement_t {
 struct statement_sequence_t{
   struct statement_t *s;
   struct statement_sequence_t *next;
+  struct code_t * code;
 };
 
 #define T_OP_CODE 1
 #define T_GOTO_CODE 2
 #define T_IF_CODE 3
-#define T_LABEL_CODE 4
-#define T_ASSIGN_CODE 5
-#define T_DUMMY_CODE 6
+#define T_WHILE_CODE 4
+#define T_ASSIGN_CODE 6
+#define T_DUMMY 7 // dont know if we will need this yet
 struct code_t{
   union{
     struct op_code_t *op_code;
     struct goto_code_t * goto_code;
-    struct if_code_t * if_code;
-    struct label_t * label_code;
+    struct if_code_t * if_code; // also used for while
+    //struct label_code_t * label_code;
 	struct assign_code_t * assign_code;
   }t;
   int type; //op | if | goto | label | assign
@@ -418,17 +434,17 @@ struct assign_code_t
 	struct variable_t *v1;
 };
 
-struct label_t{
-  char * id;
-};
-
 struct goto_code_t{
+	char * label_id;
+	struct label_t * label;
 };
 
 struct if_code_t{
-  struct variable_t *var;
-  struct code_t * true_target;
-  struct code_t * false_target; 
+	struct variable_t *v1;
+	struct variable_t *v2;
+	int op;
+	struct code_t * true_target;
+	struct code_t * false_target; 
 };
 
 struct basic_block_t{
@@ -442,9 +458,16 @@ struct cfg_t{
   struct basic_block_t* exit;
 };
 
+#define VARIABLE_TYPE 0
+#define CONSTANT_TYPE 1
 struct variable_t{
   char *id;
-  int value; // this will end up being index for value numbering array
+  union
+  {
+	  int value; // this will end up being index for value numbering array
+	  int value_number;
+  }val;
+  int type;
   //do we have floats and others? in that case we have to specify type T:No, just ints
 };
 /* ---------------------------------------------------------------- */

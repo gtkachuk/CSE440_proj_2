@@ -110,45 +110,18 @@ void parse_command_line_arguments(int argc, char **argv, struct args_t *args)
  */
 int main(int argc, char **argv)
 {
-  parse_command_line_arguments(argc, argv, &cmdArgs);
+	parse_command_line_arguments(argc, argv, &cmdArgs);
 
-  usrdef_init();
-  symtab_init();
+	symtab_init();
 
-  /* begin parsing */
-  yyparse();
+	yyparse();
 
-  print_code(program);
-  optimize(program);
-  return 0;
-  /* If there were parsing errors, exit. */
-  exit_on_errors();
-
-  /* Perform semantic analysis */
-  semantic_analysis(program);
-
-  /* If there were errors during semantic analysis, exit. */
-  exit_on_errors();
-
-  /* If we should only perform semantic analysis, exit */
-  if (cmdArgs.exit_after_sem == 1) {
-    exit(0);
-  }
-
-  if (cmdArgs.verbose == 1) {
-    /* print the user defined data types */
-    printf("USER DEFINED DATA TYPES:\n");
-    printf("------------------------\n");
-    usrdef_print();
-    
-    /* print the symbol table*/
-    printf("\n\n");
-    printf("SYMBOL TABLE:\n");
-    printf("-------------\n");
-    symtab_print(0);
-  }
-
-  /* Simple, wasn't it ?!! */
-  
-  return 0;
+	//maybe you can do this when creating the basic blocks
+	//goto_label_populate(program);
+	print_code(program);
+	variable_table_print();
+	expression_table_print();
+	label_table_print();
+  optimize();
+	return 0;
 }

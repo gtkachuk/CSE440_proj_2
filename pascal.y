@@ -506,47 +506,26 @@ statement_sequence : statement
 		struct statement_sequence_t * statement_sequence = new_statement_sequence();
 		$$ = statement_sequence;
 		$$->s = $1;
+		$$->code = $1->code;
 	}
- | statement_sequence semicolon statement
+ | statement semicolon statement_sequence
 	{
 		struct statement_sequence_t * statement_sequence = new_statement_sequence(); 
 		$$ = statement_sequence;
-		$$->s = $3;
-		$$->next = $1;
-		/*
-		if($$->type == T_IF_CODE)
-		{
-		  struct code_t* temp = NULL;
-		  struct code_t* prev = NULL;
-
-		  //attach the next statement to the end of this if's true block
-		  if ($$->code->t.if_code != NULL){
-			temp = $$->code->t.if_code->true_target;
-		  }
-
-		  while(temp != NULL)
-		  {
-			//find this true block's final statement
-			prev = temp;   
-			temp = temp->next;
-		  }
-		  if(prev != NULL) prev->next = $3;
-		  //attach the next statement to the end of this if's false block. Why did he only mention true?
-		  if ($$->code->t.if_code != NULL){
-			temp = $$->code->t.if_code->false_target;
-		  }
-		  prev = NULL;
-		  while(temp != NULL)
-		  {
-			prev = temp;
-			temp = temp->next;
-		  }
-		  if(prev != NULL) prev->next = $3;
-		}
-		else
-			  $$->next = $3;
-		*/
+		$$->s = $1;
+		$$->next = $3;
 	}
+ | label statement_sequence
+    {
+		printf("IN SS\n\n");
+		struct statement_sequence_t * statement_sequence = new_statement_sequence();
+		$$ = statement_sequence;
+		$$->next = $2;
+		$$->s = new_statement();
+		$$->s->type = STATEMENT_T_LABEL;
+		$$->s->data.l = $1;
+		// add label next_ss here
+    }
 ;
 
 statement: assignment_statement
@@ -576,6 +555,7 @@ statement: assignment_statement
 		$$->data.is = $1;
 		$$->line_number = line_number;
 		$$->code = $1->code;
+
 	}
 	| while_statement
 	{
@@ -595,6 +575,14 @@ statement: assignment_statement
 		$$->line_number = line_number;
 		$$->code = $1->code;
 	}
+	| goto_statement
+	{
+		struct statement_t * statement = new_statement();
+		$$ = statement;
+		$$->type = STATEMENT_T_GOTO;
+		$$->data.gs = $1;
+		$$->code = $1->code;
+	}
 ;
 
 while_statement: WHILE boolean_expression DO compound_statement
@@ -603,6 +591,16 @@ while_statement: WHILE boolean_expression DO compound_statement
 		$$ = while_statement;
 		$$->e = $2;
 		$$->s = $4;
+		$$->code = new_code();
+		$$->code->type = T_WHILE_CODE;
+		$$->code->t.if_code = new_if_code();
+		struct code_t * temp_code = $2->code;
+		GOTO_END_OF_LIST(temp_code);
+		$$->code->t.if_code->v1 = temp_code->t.op_code->v1;
+		$$->code->t.if_code->v2 = temp_code->t.op_code->v2;
+		$$->code->t.if_code->op = temp_code->t.op_code->op;
+		$$->code->t.if_code->true_target = $4->code;
+		$$->code->t.if_code->false_target = NULL;
 	}
 ;
 
@@ -613,6 +611,16 @@ if_statement : IF boolean_expression THEN compound_statement ELSE compound_state
 		$$->e = $2;
 		$$->s1 = $4;
 		$$->s2 = $6;
+		$$->code = new_code();
+		$$->code->type = T_IF_CODE;
+		$$->code->t.if_code = new_if_code();
+		struct code_t * temp_code = $2->code;
+		GOTO_END_OF_LIST(temp_code);
+		$$->code->t.if_code->v1 = temp_code->t.op_code->v1;
+		$$->code->t.if_code->v2 = temp_code->t.op_code->v2;
+		$$->code->t.if_code->op = temp_code->t.op_code->op;
+		$$->code->t.if_code->true_target = $4->code;
+		$$->code->t.if_code->false_target = $6->code;
 	}
  ;
 
@@ -623,39 +631,26 @@ assignment_statement : variable_access ASSIGNMENT expression
 		$$ = assignment_statement;
 		$$->va = $1;
 		$$->e = $3;
-		$$->code = new_code();
-    $$->code->type = T_ASSIGN_CODE;
-		$$->code->t.assign_code = new_assign_code();
-		$$->code->t.assign_code->assigned = new_variable();
-		$$->code->t.assign_code->assigned->id = nextTempId();
-		$$->code->t.assign_code->assigned = new_variable();
-		$$->code->t.assign_code->assigned->id = $1->data.id;
-		$$->code->t.assign_code->v1 = $3->var;
-		//$$->var = $$->code->t.op_code->assigned;
-		if (DEBUG) printf("HERE IN ASSIGNMENT_STATEMENT:VA %s = EXP %s\n", $1->data.id, $3->var->id);
-
-		/*
-		switch ($1->type)
+		struct code_t * newcode = new_code();
+		newcode->t.assign_code = new_assign_code();
+		newcode->t.assign_code->assigned = new_variable();
+		newcode->t.assign_code->assigned->id = $1->data.id;
+		newcode->t.assign_code->v1 = $3->var;
+		newcode->type = T_ASSIGN_CODE;
+		if ($3->code != NULL)
 		{
-			case VARIABLE_ACCESS_T_IDENTIFIER:
-				
-				break;
-			case VARIABLE_ACCESS_T_INDEXED_VARIABLE:
-				
-				break;
-			case VARIABLE_ACCESS_T_ATTRIBUTE_DESIGNATOR:
-	
-				break;
-			case VARIABLE_ACCESS_T_METHOD_DESIGNATOR:
-		
-				break;
+			struct code_t * temp_code = $3->code;
+			GOTO_END_OF_LIST(temp_code);
+			temp_code->next = newcode;
+			$$->code = $3->code;
 		}
-		if ($1->expr->type != NULL && $3->expr->type != NULL &&
-		    (strcasecmp($1->expr->type, $3->expr->type)) != 0)
+		else
 		{
-			error_type_mismatch(line_number, $1->expr->type, $3->expr->type);
-		}	
-		*/
+			$$->code = newcode;
+		}
+		if (DEBUG) printf("HERE IN ASSIGNMENT_STATEMENT:VA %s = EXP %s\n", $1->data.id,
+				newcode->t.op_code->v1->id);
+
 	}
  | variable_access ASSIGNMENT object_instantiation
 	{
@@ -689,24 +684,26 @@ print_statement : PRINT variable_access
 	}
 ;
 
-goto_statement : GOTO label
+goto_statement : GOTO identifier
   {
-    struct goto_code_t * goto_code = new_goto_code();
-    $$ = goto_code;
-	$$->next = NULL;//$1
+    struct goto_statement_t * goto_statement = new_goto_statement();
+	$$ = goto_statement;
+	$$->code = new_code();
+	$$->code->type = T_GOTO_CODE;
+	$$->code->t.goto_code = new_goto_code();
+	$$->code->t.goto_code->label_id = $2;
+	if (DEBUG) printf("HERE IN GOTO: %s\n", $2);
   }
 ;
 
 label : identifier COLON statement
   {
-    //we can match label id to statement* or code*
-    //make the first code of the statement - T_LABEL_CODE 
+	printf("IN LABEL\n");
     struct label_t* label = new_label();
     $$ = label;
-    //backwards assignment. will this work?
-    $3->code->type = T_LABEL_CODE;
-    $3->code->t.label_code = label; 
     $$->id = $1;
+	$$->line_number = line_number;
+	addLabel(label);
   }
   | identifier COLON
   {
@@ -721,8 +718,13 @@ variable_access : identifier
 	{
 		struct variable_access_t * variable_access = new_variable_access();
 		$$ = variable_access;
-        $$->type = 1;
+	        $$->type = 1;
 		$$->data.id = $1;
+
+		$$->var = new_variable();
+		$$->var->id = $1;
+		$$->var->type = VARIABLE_TYPE;
+
 		$$->type = VARIABLE_ACCESS_T_IDENTIFIER;
 		struct symbol * s = lookupSymbol($1, VARIABLETYPE, cur_class_scopes);
 		$$->expr = new_expression_data();
@@ -877,6 +879,7 @@ expression : simple_expression
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
 		$$->var = $1->var;
+		$$->code = $1->code;
 		if (DEBUG) printf("HERE IN EXP:SE %s\n", $1->var->id);
 	}
  | simple_expression relop simple_expression
@@ -888,14 +891,42 @@ expression : simple_expression
 		$$->se2 = $3;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
-		$$->code = new_code();
-		$$->code->t.op_code = new_op_code();
-		$$->code->t.op_code->assigned = new_variable();
-		$$->code->t.op_code->assigned->id = nextTempId();
-		$$->code->t.op_code->op = $2;
-		$$->code->t.op_code->v1 = $1->var;
-		$$->code->t.op_code->v2 = $3->var;
-		$$->var = $$->code->t.op_code->assigned;
+		struct code_t * newcode = new_code();
+		newcode->t.op_code = new_op_code();
+		newcode->t.op_code->assigned = new_variable();
+		newcode->t.op_code->assigned->id = nextTempId();
+		newcode->t.op_code->op = $2;
+		newcode->t.op_code->v1 = $1->var;
+		newcode->t.op_code->v2 = $3->var;
+		newcode->type = T_OP_CODE;
+		$$->var = newcode->t.op_code->assigned;
+		if ($1->code != NULL && $3->code == NULL)
+		{
+			struct code_t * tempcode = $1->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $1->code;
+		}
+		else if ($3->code != NULL && $1->code == NULL)
+		{
+			struct code_t * tempcode = $3->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $3->code;
+		}
+		else if ($1->code != NULL && $3->code != NULL)
+		{
+			struct code_t * tempcode = $1->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = $3->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $1->code;
+		}
+		else
+		{
+			$$->code = newcode;
+		}
 		if (DEBUG) printf("HERE IN EXP:SE %s RELOP SE %s\n", $1->var->id, $3->var->id);
 	}
  ;
@@ -910,26 +941,15 @@ simple_expression : term
 		$$->t = $1;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+
 		$$->var = $1->var;
+
+		$$->code = $1->code;
+
 		if (DEBUG) printf("HERE IN SE:TERM %s\n", $1->var->id);
 	}
  | simple_expression addop term
 	{
-    /*given a single line complex statement we break it down into two, 
-    connect the two and return the pointer to the starting code:
-    a = b + c * d :
-          |
-    |----------|
-    |t = c * d |
-    |----------|
-          |
-    |----------|
-    |a = b + t |
-    |----------|
-    
-    return pointer to t
-    */ 
-    //FIX: need to break this into 2 codes
 		struct simple_expression_t * simple_expression = new_simple_expression();
 		$$ = simple_expression;
 		$$->next = $1;
@@ -937,16 +957,48 @@ simple_expression : term
 		$$->t = $3;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
-		$$->code = new_code();
-		$$->code->t.op_code = new_op_code();
-		$$->code->t.op_code->assigned = new_variable();
-		$$->code->t.op_code->assigned->id = nextTempId();
-		$$->code->t.op_code->op = $2;
-		$$->code->t.op_code->v1 = $1->var;
-		$$->code->t.op_code->v2 = $3->var;
-		$$->var = $$->code->t.op_code->assigned;
-		if (DEBUG) printf("HERE IN SE:SE %s ADDOP TERM %s\n", $1->var->id, $3->var->id);
+		
+		struct code_t * newcode = new_code();
+		newcode->t.op_code = new_op_code();
+		newcode->t.op_code->assigned = new_variable();
+		newcode->t.op_code->assigned->id = nextTempId();
+		newcode->t.op_code->op = $2;
+		newcode->t.op_code->v1 = $1->var;
+		newcode->t.op_code->v2 = $3->var;
+		newcode->type = T_OP_CODE;
+		$$->var = newcode->t.op_code->assigned;
 
+		// link the lists of code together, if present
+		if ($1->code != NULL && $3->code == NULL)
+		{
+			struct code_t * tempcode = $1->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $1->code;
+		}
+		else if ($3->code != NULL && $1->code == NULL)
+		{
+			struct code_t * tempcode = $3->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $3->code;
+		}
+		else if ($1->code != NULL && $3->code != NULL)
+		{
+			struct code_t * tempcode = $1->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = $3->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $1->code;
+		}
+		else
+		{
+			$$->code = newcode;
+		}
+
+
+		if (DEBUG) printf("HERE IN SE:SE %s ADDOP TERM %s = %s\n", $1->var->id, $3->var->id, $$->var->id);
 	}
  ;
 
@@ -969,17 +1021,28 @@ term : factor
 		$$->f = $3;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
-		$$->code = new_code();
 		// we have regular op
-		$$->code->t.op_code = new_op_code();
-		$$->code->t.op_code->assigned = new_variable();
-		$$->code->t.op_code->assigned->id = nextTempId();
-		$$->code->t.op_code->op = $2;
-		$$->code->t.op_code->v1 = $1->var;
-		$$->code->t.op_code->v2 = $3->var;
-		$$->var = $$->code->t.op_code->assigned;
+		struct code_t * newcode = new_code();
+		newcode->t.op_code = new_op_code();
+		newcode->t.op_code->assigned = new_variable();
+		newcode->t.op_code->assigned->id = nextTempId();
+		newcode->t.op_code->op = $2;
+		newcode->t.op_code->v1 = $1->var;
+		newcode->t.op_code->v2 = $3->var;
+		newcode->type = T_OP_CODE;
+		$$->var = newcode->t.op_code->assigned;
+		if ($1->code != NULL)
+		{
+			struct code_t * tempcode = $1->code;
+			GOTO_END_OF_LIST(tempcode);
+			tempcode->next = newcode;
+			$$->code = $1->code;
+		}
+		else
+		{
+			$$->code = newcode;
+		}
 		if (DEBUG) printf("HERE IN TERM:TERM %s MULOP FACTOR %s\n", $1->var->id, $3->var->id);
-
 	}
  ;
 
@@ -1004,7 +1067,9 @@ factor : sign factor
 		$$->expr = new_expression_data();
 		$$->expr->type = $2->expr->type;
 		$$->var->id = strdup($2->var->id);
-		$$->var->value = *($1) * $2->var->value;
+		$$->var->val.value = *($1) * $2->var->val.value;
+		$$->var->type = VARIABLE_TYPE;
+		if (DEBUG) printf("HERE IN FACTOR: SIGN FACTOR %s\n", $2->var->id);
 	}
  | primary 
 	{
@@ -1014,8 +1079,8 @@ factor : sign factor
 		$$->data.p = $1;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
-		$$->var->id = $1->data.va->data.id; // $1.id somehow
-		$$->var->value = 1; // $1.val somehow value number value
+		$$->var = $1->var;
+		if (DEBUG) printf("HERE IN FACTOR: SIGN FACTOR %s\n", $1->var->id);
 	}
  ;
 
@@ -1027,10 +1092,8 @@ primary : variable_access
 		$$->type = PRIMARY_T_VARIABLE_ACCESS;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
-		if ($1->type == VARIABLE_ACCESS_T_IDENTIFIER && $1->expr->type == NULL)
-		{		
-			//error_variable_not_declared(line_number, $1->data.id);
-		}
+		$$->var = $1->var;
+		if (DEBUG) printf("HERE IN PRIMARY: SIGN FACTOR %s\n", $1->var->id);
 	}
  | unsigned_constant
 	{
@@ -1040,6 +1103,10 @@ primary : variable_access
 		$$->type = PRIMARY_T_UNSIGNED_CONSTANT;
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
+		$$->expr->val = $1->expr->val;
+		$$->var->type = CONSTANT_TYPE;
+		$$->var->id = inttostring($1->ui);
+		$$->var->val.value = $1->ui;
 	}
  | function_designator
 	{
@@ -1048,8 +1115,6 @@ primary : variable_access
 		$$->data.fd = $1;
 		$$->type = PRIMARY_T_FUNCTION_DESIGNATOR;
 		$$->expr = new_expression_data();
-		// may have to add return type as the "type" of a function
-	//	$$->expr->type = (lookupSymbol($1->id, FUNCTIONTYPE, cur_class_scopes))->type;
 	}
  | LPAREN expression RPAREN
 	{
@@ -1094,8 +1159,8 @@ function_designator : identifier params
 	{
 		struct function_designator_t * function_designator = new_function_designator();
 		$$ = function_designator;
-        $$->id = $1;
-        $$->apl = $2;
+ 	       $$->id = $1;
+        	$$->apl = $2;
 		
 	}
  ;
