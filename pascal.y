@@ -514,6 +514,8 @@ statement_sequence : statement
 		$$ = statement_sequence;
 		$$->s = $1;
 		$$->next = $3;
+    $$->code = $1->code;
+    
 	}
  | label statement_sequence
     {

@@ -122,6 +122,6 @@ int main(int argc, char **argv)
 	variable_table_print();
 	expression_table_print();
 	label_table_print();
-  optimize();
+  optimize(program);
 	return 0;
 }

@@ -388,13 +388,6 @@ void print_code_term(struct term_t *t)
 				temp_code->t.op_code->v2->id);
 			temp_code = temp_code->next;
 		}
-<<<<<<< HEAD
-		// why is the term getting printed twice..
-		if (DEBUG) printf("%d\n", t);
-		//int i = 1 / (count - 1);
-		count++;
-=======
->>>>>>> f70ad9d9ae2cd571671ef55eccc7b09bf19b7ccc
 		temp = temp->next;
 	}
 }
