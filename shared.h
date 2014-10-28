@@ -356,7 +356,7 @@ struct label_t{
 
 struct function_block_t{
   struct variable_declaration_list_t *vdl;
-  struct statement_sequence *ss;
+  struct statement_sequence_t *ss;
 };
 
 struct statement_sequence_t;
@@ -398,7 +398,6 @@ struct statement_sequence_t{
 #define T_GOTO_CODE 2
 #define T_IF_CODE 3
 #define T_WHILE_CODE 4
-//#define T_LABEL_CODE 5
 #define T_ASSIGN_CODE 6
 #define T_DUMMY 7 // dont know if we will need this yet
 struct code_t{
@@ -452,6 +451,17 @@ struct if_code_t{
 	int op;
 	struct code_t * true_target;
 	struct code_t * false_target; 
+};
+
+struct basic_block_t{
+  struct code_t *entry;
+  struct code_t *exit;
+  int num_incoming;
+};
+
+struct cfg_t{
+  struct basic_block_t* entry;
+  struct basic_block_t* exit;
 };
 
 #define VARIABLE_TYPE 0

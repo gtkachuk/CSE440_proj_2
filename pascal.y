@@ -696,7 +696,7 @@ goto_statement : GOTO identifier
   }
 ;
 
-label : identifier COLON
+label : identifier COLON statement
   {
 	printf("IN LABEL\n");
     struct label_t* label = new_label();
@@ -705,6 +705,13 @@ label : identifier COLON
 	$$->line_number = line_number;
 	addLabel(label);
   }
+  | identifier COLON
+  {
+    struct label_t* label = new_label();
+    $$ = label;
+    $$->id = $1;
+  }
+
 ;
 
 variable_access : identifier
