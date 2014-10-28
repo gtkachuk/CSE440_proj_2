@@ -118,10 +118,10 @@ int main(int argc, char **argv)
 
 	//maybe you can do this when creating the basic blocks
 	//goto_label_populate(program);
-	print_code(program);
-	variable_table_print();
-	expression_table_print();
+	//print_code(program);
+	//variable_table_print();
+	//expression_table_print();
 	label_table_print();
-  optimize(program);
+	optimize(program);
 	return 0;
 }

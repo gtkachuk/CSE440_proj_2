@@ -698,6 +698,7 @@ goto_statement : GOTO identifier
   }
 ;
 
+/* doesnt this lose the statement from the statement sequence?
 label : identifier COLON statement
   {
 	printf("IN LABEL\n");
@@ -708,10 +709,15 @@ label : identifier COLON statement
 	addLabel(label);
   }
   | identifier COLON
+*/
+label: identifier COLON
   {
-    struct label_t* label = new_label();
-    $$ = label;
-    $$->id = $1;
+	printf("IN LABEL\n");
+	struct label_t* label = new_label();
+	$$ = label;
+	$$->id = $1;
+	$$->line_number = line_number;
+	addLabel(label);
   }
 
 ;
