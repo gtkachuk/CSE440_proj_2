@@ -457,6 +457,9 @@ struct basic_block_t{
   struct code_t *entry;
   struct code_t *exit;
   int num_incoming;
+  struct variable_table * vt;
+  struct variable_table * cvt;
+  struct expression_table * et;
 };
 
 struct cfg_t{

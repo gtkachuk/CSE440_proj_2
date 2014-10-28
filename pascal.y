@@ -27,6 +27,7 @@ extern struct identifier_list_t *cur_class_scopes;
 /* points to the current class scope, starting with the current, each next is higher, up to global, this is held in symtab */
 struct program_t *program;			/* points to our program */
 extern int lookupTypeIndex(char * _name, struct identifier_list_t * _scope);
+
 void dprint(char * str)
 {
 	if (DEBUG)
@@ -717,7 +718,7 @@ label: identifier COLON
 	$$ = label;
 	$$->id = $1;
 	$$->line_number = line_number;
-	addLabel(label);
+	add_label(label);
   }
 ;
 
