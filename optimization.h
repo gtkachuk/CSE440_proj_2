@@ -6,5 +6,8 @@ void process_code(struct statement_sequence_t *code);
 void build_cfg();
 void print_bb_list();
 void print_line(struct code_t* code);
+void print_bb_tree(struct basic_block_t* bb);
+void print_bb(struct basic_block_t* bb);
+
 
 #endif

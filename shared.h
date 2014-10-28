@@ -456,8 +456,13 @@ struct if_code_t{
 struct basic_block_t{
   struct code_t *entry;
   struct code_t *exit;
+  struct basic_block_t *left;
+  struct basic_block_t *right;
+  int num;
+  int printed;
   int num_incoming;
 };
+  
 
 struct cfg_t{
   struct basic_block_t* entry;
