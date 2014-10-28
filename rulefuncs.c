@@ -530,7 +530,7 @@ struct variable_t * new_variable(){
   struct variable_t *var;
   var = (struct variable_t*) malloc(sizeof(struct variable_t));
   var->id = NULL;
-  var->val.value = 0;
+  var->val.constant_value = 0;
   var->val.value_number = -1;
   return var;
 }

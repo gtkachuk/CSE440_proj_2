@@ -420,6 +420,12 @@ struct op_code_t{
 	struct variable_t *v1;
 	struct variable_t *v2;
 	int op; // this can be any kind of op (mulop, addop, or relop)
+	union
+	{
+		int constant_value;
+		int value_number; 
+	}val;
+	int type; // constant or variable
 }; 
 
 // maybe this can be added to op_code_t?
@@ -464,10 +470,10 @@ struct variable_t{
   char *id;
   union
   {
-	  int value; // this will end up being index for value numbering array
+	  int constant_value;
 	  int value_number;
   }val;
-  int type;
+  int type; // constant of variable
   //do we have floats and others? in that case we have to specify type T:No, just ints
 };
 /* ---------------------------------------------------------------- */

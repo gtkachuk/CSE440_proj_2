@@ -10,48 +10,52 @@
 #include "error.h"
 #include "code.h"
 
-#define NOTYPEFOUND -1
-
-#define MAXSYMBOLS 701
-#define HASHSIZE 701
 
 int currentIndex = 10;
+int current_value_number = 0;
+int current_label = 0;
 
 struct symbol * symbolHash[MAXSYMBOLS];
 
-int current_variable = 0;
-struct variable_t * variableTable[MAXSYMBOLS];
-
-int current_expression = 0; 
-struct op_code_t * expressionTable[MAXSYMBOLS];
-
-int current_label = 0;
-struct label_t * labelTable[MAXSYMBOLS];
+struct label_t * label_table[MAXSYMBOLS];
 
 
-int valueNumberForVar(struct variable_t * v)
+int valueNumberForVar(struct variable_table * vt, struct variable_t * v)
 {
-
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
+	{
+		if (vt->t[i] == NULL)
+		{
+			continue;
+		}
+		struct variable_t * temp = vt->t[i];
+		if (strcasecmp(v->id, temp->id) == 0)
+		{
+			return v->val.value_number;
+		}
+	}
+	return -1;
 }
 
-int valueNumberIndexForVar(struct variable_t * v)
+int valueNumberForExpression(struct expression_table * et, struct op_code_t * e)
 {
-
-}
-
-int valueNumberForExpression(struct op_code_t * e)
-{
-
-}
-
-int valueNumberIndexForExpression(struct op_code_t * e)
-{
-
-}
-
-int lineNumberForLabel(struct label_t * l)
-{
-
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
+	{
+		if (et->t[i] == NULL)
+		{
+			continue;
+		}
+		struct op_code_t * temp = et->t[i];
+		if ((strcasecmp(e->v1->id, temp->v1->id) == 0) && 
+			(strcasecmp(e->v2->id, temp->v2->id) == 0) &&
+			(e->op == temp->op))
+		{
+			return e->val.value_number;
+		}
+	}
+	return -1;
 }
 
 struct label_t * labelForID(char * id)
@@ -59,11 +63,11 @@ struct label_t * labelForID(char * id)
 	int i;
 	for (i = 0; i < MAXSYMBOLS; i++)
 	{
-		if (labelTable[i] == NULL)
+		if (label_table[i] == NULL)
 		{
 			continue;
 		}
-		struct label_t * l = labelTable[i];
+		struct label_t * l = label_table[i];
 		if (strcasecmp(l->id, id) == 0)
 		{
 			return l;
@@ -72,19 +76,21 @@ struct label_t * labelForID(char * id)
 	return NULL;
 }
 
-void addvariable(struct variable_t * v)
+void addvariable(struct variable_table * vt, struct variable_t * v)
 {
-	variableTable[current_variable++] = v;
+	vt->t[vt->current_index++] = v;
+	v->val.value_number = current_value_number;
 }
 
-void addExpression(struct op_code_t * e)
+void addExpression(struct expression_table * et, struct op_code_t * e)
 {
-	expressionTable[current_expression++] = e;
+	et->t[et->current_index++] = e;
+	e->val.value_number = current_value_number;
 }
 
 void addLabel(struct label_t * l)
 {
-	labelTable[current_label++] = l;
+	label_table[current_label++] = l;
 }
 
 struct symbol * addSymbol(char * _name, int _lineNumber, int _symbolType, int _typeIndex, char * _type,
@@ -373,30 +379,30 @@ char * convertType(int i)
 	printf("\n\n\n");
 }
 
-void variable_table_print()
+void variable_table_print(struct variable_table * vt)
 {
 	int i;
 	for (i = 0; i < MAXSYMBOLS; i++)
 	{
-		if (variableTable[i] == NULL)
+		if (vt->t[i] == NULL)
 		{
 			continue;
 		}
-		struct variable_t * v = variableTable[i];
+		struct variable_t * v = vt->t[i];
 		printf("variable %d: %s\n", i, v->id);
 	}
 }
 
-void expression_table_print()
+void expression_table_print(struct expression_table * et)
 {
 	int i;
 	for (i = 0; i < MAXSYMBOLS; i++)
 	{
-		if (expressionTable[i] == NULL)
+		if (et->t[i] == NULL)
 		{
 			continue;
 		}
-		struct op_code_t * e = expressionTable[i];
+		struct op_code_t * e = et->t[i];
 		printf("expression %d: %s %s %s\n", i, e->v1->id, opToChar(e->op), e->v2->id);
 	}
 }
@@ -406,11 +412,11 @@ void label_table_print()
 	int i;
 	for (i = 0; i < MAXSYMBOLS; i++)
 	{
-		if (labelTable[i] == NULL)
+		if (label_table[i] == NULL)
 		{
 			continue;
 		}
-		struct label_t * l = labelTable[i];
+		struct label_t * l = label_table[i];
 		printf("LABEL %d: %s\n", i, l->id);
 	}
 }
