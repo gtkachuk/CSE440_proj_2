@@ -474,6 +474,14 @@ struct basic_block_t{
 };
   
 
+struct expression_value_number_t
+{
+	int value_number;
+	int v1;
+	int v2;
+	int op;
+};
+
 struct cfg_t{
   struct basic_block_t* entry;
   struct basic_block_t* exit;
