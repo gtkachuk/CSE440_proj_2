@@ -528,6 +528,20 @@ void change_value_number_for_expression(struct expression_table * et, struct exp
 		e->v1, opToChar(e->op), e->v2, e->value_number);
 }
 
+struct label_t *find_code_in_label(struct code_t *code){
+  int i;
+  for(i=0;i<current_label;i++)
+  {
+    if(label_table[i]->prev_c == code)
+    {
+      return label_table[i];
+    }
+  }
+  return NULL;
+}
+
+
+
 struct label_t * labelForID(char * id)
 {
 	int i;
@@ -544,6 +558,9 @@ struct label_t * labelForID(char * id)
 	}
 	return NULL;
 }
+
+
+
 
 // this a hack
 struct variable_t * get_variable(char * id)

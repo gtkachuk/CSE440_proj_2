@@ -111,4 +111,5 @@ void variable_table_print(struct variable_table * vt);
 void constant_variable_table_print(struct variable_table * cvt);
 void expression_table_print(struct expression_table * et);
 void label_table_print();
+struct label_t *find_code_in_label(struct code_t *code);
 #endif

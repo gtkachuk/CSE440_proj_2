@@ -32,8 +32,90 @@ int false_exit;
 int     if_flag;
 extern void dprint(char * str);
 
+/********** UTILITIES **************************/
+//remove the block from the list of blocks 
+void remove_from_list(struct basic_block_t *bb)
+{
+  int i,j;
+  for (i=0; i<bb_idx; i++)
+  {
+    if(bb == bb_list[i])
+    {
+      for(j=i+1;j<bb_idx;j++)
+      {
+        bb_list[j-1] = bb_list[j];
+      }
+      bb_idx--;
+    }
+    
+  }
+  printf("ERROR COULD NOT FIND IN LIST\n");
+  for (i=0; i<bb_idx;i++)
+  {
+    remove_parent(bb_list[i], bb);
+  }
+}
 
+//add block to the list of blocks parents, keep track of incoming nodes
+void add_parent(struct basic_block_t *child, struct basic_block_t *parent)
+{
+  child->parents[child->num_incoming] = parent;
+  child->num_incoming++;
+}
 
+//remove block from list of parents of block, decrease counter
+void remove_parent(struct basic_block_t *child, struct basic_block_t* parent)
+{
+  int i;
+  int j;
+  for(i=0;i<child->num_incoming;i++)
+  {
+    if (parent == child->parents[i])
+    {
+      for(j=i+1;j<child->num_incoming;j++)
+      {
+        child->parents[j-1] = child->parents[j];
+      }
+      child->num_incoming--;
+    }
+    
+  }
+  printf("ERROR COULD NOT FIND PARENT\n");
+  exit_on_errors();
+}
+
+//given a code statement return the basic block of which it is the entry
+struct basic_block_t* find_bb_by_code(struct code_t *code)
+{
+  int i;
+
+  //printf("looking for code: ");
+  //print_line(code);
+  for (i=0; i<bb_idx;i++)
+  {
+    if(bb_list[i]->entry == code){
+      //printf("found BB%d\n", i);
+      return bb_list[i];
+    }
+  }
+  return NULL;
+}
+
+struct basic_block_t* find_bb_by_exit(struct code_t *code)
+{
+  int i;
+
+  //printf("looking for code: ");
+  //print_line(code);
+  for (i=0; i<bb_idx;i++)
+  {
+    if(bb_list[i]->exit == code){
+      //printf("found BB%d\n", i);
+      return bb_list[i];
+    }
+  }
+  return NULL;
+}
 /* ----------------------------------------------------------------------- 
  * Create BB and CFG structure
  * ----------------------------------------------------------------------- 
@@ -49,8 +131,9 @@ void optimize(struct program_t *p)
   //if statement sequence has code
   //get first code statement, start building basic blocks
   process_code(ss);
-  populate_value_numbers();
+  attach_labels();
   build_cfg();
+  populate_value_numbers();
   printf("-----------------PRINTING BB TREE---------------\n");
   print_bb_tree(bb_list[0]);
   remove_dummies(bb_list[0]);
@@ -62,7 +145,9 @@ void optimize(struct program_t *p)
   
   temp_cl = temp_cl->next;
 }
-
+/*********************
+*basic block constructor
+**********************/
 struct basic_block_t *new_bb(struct code_t *entry, struct code_t *exit)
 {
   struct basic_block_t *bb = (struct basic_block_t*)malloc(sizeof(struct basic_block_t));
@@ -98,10 +183,25 @@ void process_code(struct statement_sequence_t *ss){
     
     current = ss->code;
 
+    //cut off previous ss, process the next ss 
+    if(prev != NULL && ss->s->type == STATEMENT_T_LABEL)
+    {
+      prev->next = ss->s->data.l->next_ss->code;
+      ss->s->data.l->prev_c = prev;
+      bb_list[bb_idx] = new_bb(entry, prev);
+      bb_list[bb_idx]->num = bb_idx;
+      bb_idx++;
+      //next statement sequence to process is the label ss
+      process_code(ss->s->data.l->next_ss);
+      break;
+    }
     //continue chain of codes
-    if(prev != NULL) {
+    else if(prev != NULL) {
       prev->next = current;
       prev = NULL;
+    }
+    else if(prev == NULL && ss->s->type == STATEMENT_T_LABEL){
+      process_code(ss->s->data.l->next_ss);
     }
     //for each code in this statement
     while(current != NULL){
@@ -122,7 +222,7 @@ void process_code(struct statement_sequence_t *ss){
         entry = current->next;
         break;
       }
-      if (current->type == T_WHILE_CODE)
+      else if (current->type == T_WHILE_CODE)
       {
         if (ss->s->type != STATEMENT_T_WHILE)
         {
@@ -136,20 +236,23 @@ void process_code(struct statement_sequence_t *ss){
         entry = current->next;
         break;
       }
+      else if (current->type == T_GOTO_CODE)
+      {
+        exit = current;
+        bb_list[bb_idx] = new_bb(entry,exit);
+        bb_list[bb_idx]->num = bb_idx;
+        bb_idx++;
+        //next block is not the one pointed to by goto but the next ss. This allows us to process all of the code. The children of the goto will be reassigned later. 
+        entry = current->next;
+
+      }
       
 
-      //if the next code is label it can be target of many codes --> block cutoff unless it only has one target. need to figure out how to keep track of this.
-      //else if (current->type == T_LABEL_CODE)  
-      //{
-      //  exit = prev;
-      //  bb_list[bb_idx] = new_bb(entry,exit);
-        //bb_list[bb_idx]->num = bb_idx;
-      //  bb_idx++;
-      //}
       prev = current;
       current = current->next;
     }
     //process branches as statement sequences
+    //add dummies at the ends
     if (ss->s->type == STATEMENT_T_IF)
     {
       printf("Process true and false branches\n");
@@ -192,10 +295,18 @@ void process_code(struct statement_sequence_t *ss){
         dummy_bb->exit->next = ss->next->code;
         entry = ss->next->code;
       }
-      
-
       //process_code(ss->next);
     }
+    else if (ss->s->type == STATEMENT_T_GOTO){
+      printf("Process goto statement\n");
+      if (ss->next == NULL)
+        break;
+      else{
+        process_code(ss->next);
+        break;
+      }
+    }
+    
     //last statement in sequence - bb completed
     if(ss->next == NULL)
     {
@@ -207,6 +318,104 @@ void process_code(struct statement_sequence_t *ss){
   }
 }
 
+void attach_labels(){
+  int i;
+  struct code_t *temp;
+  struct label_t *label;
+  for (i=0;i<bb_idx;i++)
+  {
+    temp = bb_list[i]->exit;
+    label = find_code_in_label(temp);
+    if (label != NULL)
+    {
+      if (bb_list[i]->left ==NULL){
+        bb_list[i]->left = find_bb_by_code(label->next_ss->code);
+        add_parent(bb_list[i]->left, bb_list[i]);
+      }
+    }
+  }
+
+    
+}
+/* Merging algorithms for the blocks that haven't been merged 
+during creation process. End result of this is the BB graph with dummies */
+void build_cfg(){
+  int i;
+  for (i=0; i<bb_idx; i++)
+  {
+    
+    if(bb_list[i]->exit->type == T_IF_CODE)
+    {
+      if(bb_list[i]->left == NULL){
+        bb_list[i]->left = find_bb_by_code(bb_list[i]->exit->t.if_code->true_target);
+        add_parent(find_bb_by_code(bb_list[i]->exit->t.if_code->true_target), bb_list[i]);
+      }
+      if(bb_list[i]->right == NULL){
+        bb_list[i]->right = find_bb_by_code(bb_list[i]->exit->t.if_code->false_target);
+        add_parent(find_bb_by_code(bb_list[i]->exit->t.if_code->false_target), bb_list[i]);
+      }
+    }
+    else if(bb_list[i]->exit->type == T_WHILE_CODE)
+    {
+      if(bb_list[i]->left == NULL){
+        bb_list[i]->left = find_bb_by_code(bb_list[i]->exit->t.if_code->true_target);
+        add_parent(find_bb_by_code(bb_list[i]->exit->t.if_code->true_target), bb_list[i]);
+      }
+      if(bb_list[i]->left != NULL){
+        bb_list[i]->left->left = bb_list[i];
+        add_parent(bb_list[i], bb_list[i]->left);
+      }
+      //bb_list[i]->right = bb_list[i];
+      //bb_list[i]->num_incoming++;
+    }
+    else if(bb_list[i]->exit->type == T_DUMMY)
+    {
+      bb_list[i]->left = find_bb_by_code(bb_list[i]->exit->next);
+      add_parent(find_bb_by_code(bb_list[i]->exit->next),bb_list[i]);
+    }
+    else if(bb_list[i]->exit->type == T_GOTO_CODE)
+    {
+      //point the BB of goto to the BB under label
+      bb_list[i]->left = find_bb_by_code(labelForID(bb_list[i]->exit->t.goto_code->label_id)->next_ss->s->code);
+      add_parent(bb_list[i]->left, bb_list[i]);
+    }
+  }
+}
+
+/*traverse through the tree, remove dummies as in the algorithm*/
+void remove_dummies(struct basic_block_t *bb){
+  if(bb != NULL){
+    //*node->left represents the unique child of a node
+    if (bb->left != NULL && bb->left->entry->type == T_DUMMY){
+      while(bb->left->entry->type == T_DUMMY && bb->left->left != NULL)
+      {
+        remove_parent(bb->left, bb);
+        if(bb->left->num_incoming == 0)
+          remove_from_list(bb->left);
+        bb->left = bb->left->left;
+        add_parent(bb->left, bb);
+      }
+    }
+    if (bb->right != NULL && bb->right->entry->type == T_DUMMY){
+      while(bb->right->entry->type == T_DUMMY && bb->right->left != NULL)
+      {
+        remove_parent(bb->right, bb);
+        if(bb->right->num_incoming == 0)
+          remove_from_list(bb->right);
+        bb->right = bb->right->left;
+        add_parent(bb->right, bb);
+      }
+
+    }
+    bb->dummies_removed = 1;
+    if(bb->left != NULL && bb->left->dummies_removed == 0)
+      remove_dummies(bb->left);
+    if(bb->right != NULL  && bb->right->dummies_removed == 0)
+      remove_dummies(bb->right);
+  }
+}
+/****************** EBB block *******************/
+//Initial function, keep track of the work list
 void build_ebb(){
   ebb_wl_push(bb_list[0]);
   while (!wl_empty()){
@@ -217,6 +426,8 @@ void build_ebb(){
   }
 }
 
+//Find the BB's that are in this EBB and add new roots to the WL
+//repeat this for every item in work list 
 void find_ebb(struct basic_block_t *bb)
 {
   if(bb->left != NULL && !exists_in_wl(bb->left)){
@@ -258,89 +469,7 @@ void find_ebb(struct basic_block_t *bb)
     
 }
 
-void remove_dummies(struct basic_block_t *bb){
-  if(bb != NULL){
-    //*node->left represents the unique child of a node
-    if (bb->left != NULL && bb->left->entry->type == T_DUMMY){
-      while(bb->left->entry->type == T_DUMMY && bb->left->left != NULL)
-      {
-        remove_parent(bb->left, bb);
-        if(bb->left->num_incoming == 0)
-          remove_from_list(bb->left);
-        bb->left = bb->left->left;
-        add_parent(bb->left, bb);
-      }
-    }
-    if (bb->right != NULL && bb->right->entry->type == T_DUMMY){
-      while(bb->right->entry->type == T_DUMMY && bb->right->left != NULL)
-      {
-        remove_parent(bb->right, bb);
-        if(bb->right->num_incoming == 0)
-          remove_from_list(bb->right);
-        bb->right = bb->right->left;
-        add_parent(bb->right, bb);
-      }
-
-    }
-    bb->dummies_removed = 1;
-    if(bb->left != NULL && bb->left->dummies_removed == 0)
-      remove_dummies(bb->left);
-    if(bb->right != NULL  && bb->right->dummies_removed == 0)
-      remove_dummies(bb->right);
-  }
-}
-
-void remove_from_list(struct basic_block_t *bb)
-{
-  int i,j;
-  for (i=0; i<bb_idx; i++)
-  {
-    if(bb == bb_list[i])
-    {
-      for(j=i+1;j<bb_idx;j++)
-      {
-        bb_list[j-1] = bb_list[j];
-      }
-      bb_idx--;
-    }
-    
-  }
-  printf("ERROR COULD NOT FIND IN LIST\n");
-  for (i=0; i<bb_idx;i++)
-  {
-    remove_parent(bb_list[i], bb);
-  }
-}
-
-void add_parent(struct basic_block_t *child, struct basic_block_t *parent)
-{
-  child->parents[child->num_incoming] = parent;
-  child->num_incoming++;
-}
-
-void remove_parent(struct basic_block_t *child, struct basic_block_t
-* parent)
-{
-  int i;
-  int j;
-  for(i=0;i<child->num_incoming;i++)
-  {
-    if (parent == child->parents[i])
-    {
-      for(j=i+1;j<child->num_incoming;j++)
-      {
-        child->parents[j-1] = child->parents[j];
-      }
-      child->num_incoming--;
-    }
-    
-  }
-  printf("ERROR COULD NOT FIND PARENT\n");
-  exit_on_errors();
-}
-
-
-      
+/*************** WORK LIST FIFO QUEUE **************/
 struct basic_block_t *ebb_wl_pop()
 {
   struct basic_block_t *bb = NULL;
@@ -373,7 +502,10 @@ int wl_empty(){
   else 
     return 0;
 }
+/***********************WL QUEUE END***************************/
 
+
+/****************************** PRINT FUNCTIONS ***********/
 void print_ebb_list()
 {
   int i;
@@ -383,80 +515,6 @@ void print_ebb_list()
     print_bb(ebb_roots[i]);
   }
 }
-
-struct basic_block_t* find_bb_by_code(struct code_t *code)
-{
-  int i;
-
-  //printf("looking for code: ");
-  //print_line(code);
-  for (i=0; i<bb_idx;i++)
-  {
-    if(bb_list[i]->entry == code){
-      //printf("found BB%d\n", i);
-      return bb_list[i];
-    }
-  }
-  return NULL;
-}
-
-void build_cfg(){
-  int i;
-  int j;
-  for (i=0; i<bb_idx; i++)
-  {
-    if(bb_list[i]->exit->type == T_IF_CODE)
-    {
-      if(bb_list[i]->left == NULL){
-        bb_list[i]->left = find_bb_by_code(bb_list[i]->exit->t.if_code->true_target);
-        add_parent(find_bb_by_code(bb_list[i]->exit->t.if_code->true_target), bb_list[i]);
-      }
-      if(bb_list[i]->right == NULL){
-        bb_list[i]->right = find_bb_by_code(bb_list[i]->exit->t.if_code->false_target);
-        add_parent(find_bb_by_code(bb_list[i]->exit->t.if_code->false_target), bb_list[i]);
-      }
-    }
-    else if(bb_list[i]->exit->type == T_WHILE_CODE)
-    {
-      if(bb_list[i]->left == NULL){
-        bb_list[i]->left = find_bb_by_code(bb_list[i]->exit->t.if_code->true_target);
-        add_parent(find_bb_by_code(bb_list[i]->exit->t.if_code->true_target), bb_list[i]);
-      }
-      if(bb_list[i]->left != NULL){
-        bb_list[i]->left->left = bb_list[i];
-        add_parent(bb_list[i], bb_list[i]->left);
-      }
-      //bb_list[i]->right = bb_list[i];
-      //bb_list[i]->num_incoming++;
-    }
-    else if(bb_list[i]->exit->type == T_DUMMY)
-    {
-      bb_list[i]->left = find_bb_by_code(bb_list[i]->exit->next);
-      add_parent(find_bb_by_code(bb_list[i]->exit->next),bb_list[i]);
-    }
-  }
-  /*  
-  //merge cfgs 
-  for (i=0; i<bb_idx; i++)
-  {
-    //create if CFGs
-    if (bb_list[i]->entry->type == T_IF_CODE){
-      struct cfg_t* cfg = new_cfg();
-      cfg->entry = bb_list[i];
-      struct code_t *dummy_code = new_code();
-      cfg->entry->exit->t.if_code->true_target->next = dummy_code;
-      cfg->entry->exit->t.if_code->false_target->next = dummy_code;
-      dummy_code->next = cfg->entry->exit->next;
-      struct basic_block_t *dummy_bb = new_bb(dummy_code, dummy_code);
-      cfg->exit = dummy_bb;
-
-    }
-  }
-  */
-  
-
-}
-
 
 void print_bb(struct basic_block_t* bb){
   printf("#######~~~BASIC BLOCK %d ~~~########\n", bb->num);
@@ -538,14 +596,14 @@ void print_line(struct code_t* code){
         break;
       }
       case (T_IF_CODE):{
-        printf("if %s %s %s\n", code->t.if_code->v1->id,
+        printf("BRANCH %s %s %s\n", code->t.if_code->v1->id,
                                 opToChar(code->t.if_code->op),
                                 code->t.if_code->v2->id);
 
         break;
       }
       case (T_WHILE_CODE):{
-        printf("while %s %s %s\n", code->t.if_code->v1->id,
+        printf("BRANCH %s %s %s\n", code->t.if_code->v1->id,
                                 opToChar(code->t.if_code->op),
                                 code->t.if_code->v2->id);
         break;
@@ -557,7 +615,7 @@ void print_line(struct code_t* code){
         break;
       }
       case (T_DUMMY):{
-        printf("Dummy\n");
+        printf("D U M M Y\n");
         break;
       }
       default:{
@@ -565,6 +623,7 @@ void print_line(struct code_t* code){
       }
     }
 }
+/************************** END PRINT FUNCTIONS ***********/
 
 // populate the value_number table for the basic block as well as the constant_value_number_table
 // will perform constant folding at the same time

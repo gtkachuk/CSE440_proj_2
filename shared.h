@@ -351,7 +351,9 @@ struct goto_statement_t{
 struct label_t{
 	char * id;
 	int line_number;
-	struct statement_sequence * next_ss;
+	struct statement_sequence_t * next_ss;
+  //the only way I could figure out to attach previous bb to the bb after label
+  struct code_t *prev_c;
 };
 
 struct function_block_t{
@@ -381,8 +383,8 @@ struct statement_t {
     struct if_statement_t *is;
     struct while_statement_t *ws;
     struct print_statement_t *ps;
-	struct goto_statement_t *gs;
-	struct label_t * l;
+    struct goto_statement_t *gs;
+    struct label_t * l;
   }data;
   int line_number;
   struct code_t * code;
