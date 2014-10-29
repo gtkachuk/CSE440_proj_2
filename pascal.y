@@ -726,12 +726,10 @@ variable_access : identifier
 	{
 		struct variable_access_t * variable_access = new_variable_access();
 		$$ = variable_access;
-	        $$->type = 1;
+	    $$->type = 1;
 		$$->data.id = $1;
 
-		$$->var = new_variable();
-		$$->var->id = $1;
-		$$->var->type = VARIABLE_TYPE;
+		$$->var = get_variable($1);
 
 		$$->type = VARIABLE_ACCESS_T_IDENTIFIER;
 		struct symbol * s = lookupSymbol($1, VARIABLETYPE, cur_class_scopes);
@@ -1074,9 +1072,8 @@ factor : sign factor
 		$$->data.f.next = $2;
 		$$->expr = new_expression_data();
 		$$->expr->type = $2->expr->type;
-		$$->var->id = strdup($2->var->id);
+		$$->var = $2->var;
 		$$->var->val.constant_value = *($1) * $2->var->val.constant_value;
-		$$->var->type = VARIABLE_TYPE;
 		if (DEBUG) printf("HERE IN FACTOR: SIGN FACTOR %s\n", $2->var->id);
 	}
  | primary 
@@ -1101,7 +1098,7 @@ primary : variable_access
 		$$->expr = new_expression_data();
 		$$->expr->type = $1->expr->type;
 		$$->var = $1->var;
-		if (DEBUG) printf("HERE IN PRIMARY: SIGN FACTOR %s\n", $1->var->id);
+		if (DEBUG) printf("HERE IN PRIMARY: VARIABLE_ACCESS %s\n", $1->var->id);
 	}
  | unsigned_constant
 	{

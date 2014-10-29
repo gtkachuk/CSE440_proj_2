@@ -10,10 +10,11 @@
 #include "error.h"
 #include "code.h"
 
-
 int currentIndex = 10;
 int current_value_number = 0;
 int current_label = 0;
+
+struct variable_table * global_variable_table;
 
 struct symbol * symbolHash[MAXSYMBOLS];
 
@@ -271,7 +272,7 @@ char * convertType(int i)
 			return "Data type";
 			break;
 		case VARIABLETYPE:
-			return "Varaible";
+			return "Variable";
 			break;
 		case VARIABLEARRAYTYPE:
 			return "Array";
@@ -315,9 +316,9 @@ void variable_table_print(struct variable_table * vt)
 			continue;
 		}
 		struct variable_t * v = vt->t[i];
-		v->val.value_number != -1 ?
-			printf("variable %d: %s = v_%d\n", i, v->id, v->val.value_number) :
-			printf("variable %d: %s = ?\n", i, v->id);
+		v->val.value_number != NO_VALUE_NUMBER ?
+			printf("\tvariable %d: %s = v_%d\n", i, v->id, v->val.value_number) :
+			printf("\tvariable %d: %s = ?\n", i, v->id);
 	}
 }
 
@@ -331,7 +332,7 @@ void constant_variable_table_print(struct variable_table * cvt)
 			continue;
 		}
 		struct variable_t * cv = cvt->t[i];
-		printf("constant %d: %s = %d\n", i, cv->id, cv->val.constant_value);
+		printf("\tconstant %d: %s = %d\n", i, cv->id, cv->val.constant_value);
 	}
 }
 
@@ -345,8 +346,8 @@ void expression_table_print(struct expression_table * et)
 		{
 			continue;
 		}
-		struct op_code_t * e = et->t[i];
-		printf("expression %d: %s %s %s\n", i, e->v1->id, opToChar(e->op), e->v2->id);
+		struct expression_value_number_t * e = et->t[i];
+		printf("\texpression %d: v_%d %s v_%d : v_%d\n", i, e->v1, opToChar(e->op), e->v2, e->value_number);
 	}
 }
 
@@ -380,7 +381,7 @@ int value_number_for_var(struct variable_table * vt, struct variable_t * v)
 			}
 		}
 	}
-	return -1;
+	return NO_VALUE_NUMBER;
 }
 
 int value_for_constant_var(struct variable_table * cvt, struct variable_t * v)
@@ -397,42 +398,37 @@ int value_for_constant_var(struct variable_table * cvt, struct variable_t * v)
 			}
 		}
 	}
-	return -1;
+	return NO_VALUE_NUMBER;
 }
 
-int value_number_for_expression(struct expression_table * et, struct op_code_t * e)
+int value_number_for_expression(struct expression_table * et, struct expression_value_number_t * e)
 {
 	int i;
-	if ((i = index_for_expression(et, e)) == -1)
+	if ((i = index_for_expression(et, e)) == NO_VALUE_NUMBER)
 	{
-		return -1;
+		return NO_VALUE_NUMBER;
 	}
-	return et->t[i]->val.value_number;
+	return et->t[i]->value_number;
 }
 
-int index_for_expression(struct expression_table * et, struct op_code_t * e)
+int index_for_expression(struct expression_table * et, struct expression_value_number_t * e)
 {
 	int i;
 	for (i = 0; i < MAXSYMBOLS; i++)
 	{
 		if (et->t[i] != NULL)
 		{
-			struct op_code_t * temp = et->t[i];
-			if (
-				((strcasecmp(e->v1->id, temp->v1->id) == 0) &&
-				(strcasecmp(e->v2->id, temp->v2->id) == 0) &&
-				(e->op == temp->op))
+			struct expression_value_number_t * temp = et->t[i];
+			if (((e->op == temp->op) &&
+				(((e->v1 == temp->v1) && (e->v2 == temp->v2))
 				||
-				((strcasecmp(e->v2->id, temp->v1->id) == 0) &&
-				(strcasecmp(e->v1->id, temp->v2->id) == 0) &&
-				(e->op == temp->op))
-				)
+				((e->v1 == temp->v2) && (e->v2 == temp->v1)))))
 			{
 				return i;
 			}
 		}
 	}
-	return -1;
+	return NO_VALUE_NUMBER;
 }
 
 void delete_value_number_for_var(struct variable_table * vt, struct variable_t * v)
@@ -446,11 +442,11 @@ void delete_value_number_for_var(struct variable_table * vt, struct variable_t *
 			if (strcasecmp(v->id, temp->id) == 0)
 			{
 				// keep variable in table, just remove value_number
-				vt->t[i]->val.value_number = -1;
+				vt->t[i]->val.value_number = NO_VALUE_NUMBER;
 			}
 		}
 	}
-	return -1;
+	if (DEBUG) printf("\nDELETING VARIABLE VALUE NUMBER %s : v_%d\n", v->id, v->val.value_number);
 }
 
 void delete_value_for_constant_var(struct variable_table * cvt, struct variable_t * v)
@@ -468,17 +464,20 @@ void delete_value_for_constant_var(struct variable_table * cvt, struct variable_
 			}
 		}
 	}
+	if (DEBUG) printf("\nDELETING CONSTANT VALUE NUMBER %s : v_%d\n", v->id, v->val.constant_value);
 }
 
-void delete_value_number_for_expression(struct expression_table * et, struct op_code_t * e)
+void delete_value_number_for_expression(struct expression_table * et, struct expression_value_number_t * e)
 {
 	int i;
-	if ((i = index_for_expression(et, e)) == -1)
+	if ((i = index_for_expression(et, e)) == NO_VALUE_NUMBER)
 	{
 		// error
 		return;
 	}
-	et->t[i]->val.value_number = -1;
+	et->t[i]->value_number = NO_VALUE_NUMBER;
+	if (DEBUG) printf("\nDELETING EXPRESSION VALUE NUMBER v_%d %s v_%d : v_%d\n",
+		e->v1, opToChar(e->op), e->v2, e->value_number);
 }
 
 void change_value_number_for_var(struct variable_table * vt, struct variable_t * v, int value_number)
@@ -495,6 +494,7 @@ void change_value_number_for_var(struct variable_table * vt, struct variable_t *
 			}
 		}
 	}
+	if (DEBUG) printf("\nCHANGING VARIABLE VALUE NUMBER %s : v_%d\n", v->id, v->val.value_number);
 }
 
 void change_value_for_constant_var(struct variable_table * cvt, struct variable_t * v, int constant_value)
@@ -508,20 +508,24 @@ void change_value_for_constant_var(struct variable_table * cvt, struct variable_
 			if (strcasecmp(v->id, temp->id) == 0)
 			{
 				temp->val.constant_value = constant_value;
+				v->type = CONSTANT_TYPE;
 			}
 		}
 	}
+	if (DEBUG) printf("\nCHANGING CONSTANT VALUE NUMBER %s : v_%d\n", v->id, v->val.constant_value);
 }
 
-void change_value_number_for_expression(struct expression_table * et, struct op_code_t * e, int value_number)
+void change_value_number_for_expression(struct expression_table * et, struct expression_value_number_t * e, int value_number)
 {
 	int i;
-	if ((i = index_for_expression(et, e)) == -1)
+	if ((i = index_for_expression(et, e)) == NO_VALUE_NUMBER)
 	{
 		// error
 		return;
 	}
-	et->t[i]->val.value_number = value_number;
+	et->t[i]->value_number = value_number;
+	if (DEBUG) printf("\nCHANGING EXPRESSION VALUE NUMBER v_%d %s v_%d : v_%d\n",
+		e->v1, opToChar(e->op), e->v2, e->value_number);
 }
 
 struct label_t * labelForID(char * id)
@@ -541,35 +545,75 @@ struct label_t * labelForID(char * id)
 	return NULL;
 }
 
-void add_new_variable(struct variable_table * vt, struct variable_t * v)
+// this a hack
+struct variable_t * get_variable(char * id)
 {
-	if (DEBUG) printf("\nADDING NEW VARIABLE VALUE NUMBER %s\n", v->id); 
+	if (global_variable_table == NULL)
+		global_variable_table = (struct variable_table*)malloc(sizeof(struct variable_table));
+	int i;
+	for (i = 0; i < MAXSYMBOLS; i++)
+	{
+		if (global_variable_table->t[i] != NULL)
+		{
+			struct variable_t * temp = global_variable_table->t[i];
+			if (strcasecmp(id, temp->id) == 0)
+			{
+				printf("RETURNING %s", id);
+				return temp;
+			}
+		}
+	}
+	// we havent found anything, return a new variable;
+	struct variable_t * v = new_variable();
+	v->id = strdup(id);
+	v->type = VARIABLE_TYPE;
+	v->val.value_number = NO_VALUE_NUMBER;
+	global_variable_table->t[global_variable_table->current_index++] = v;
+	if (DEBUG) printf("\nADDING NEW GLOBAL VARIABLE %s\n", v->id);
+	return v;
+}
+
+int add_new_variable(struct variable_table * vt, struct variable_t * v)
+{
 	v->val.value_number = current_value_number++;
 	vt->t[vt->current_index++] = v;
+	if (DEBUG) printf("\nADDING NEW VARIABLE VALUE NUMBER %s : v_%d\n", v->id, v->val.value_number);
+	return v->val.value_number;
 }
 
 void add_variable(struct variable_table * vt, struct variable_t * v, int value_number)
 {
-	if (DEBUG) printf("\nADDING VARIABLE VALUE NUMBER %s = %d\n", v->id, value_number);
 	vt->t[vt->current_index++] = v;
 	//v->type = VARIABLE_TYPE; // in case this needs to change e.g.
 	// a = 0 sets it to constant
 	// a = b need to set it back to variable
 	v->val.value_number = value_number;
+	if (DEBUG) printf("\nADDING VARIABLE VALUE NUMBER %s = v_%d\n", v->id, value_number);
 }
 
 void add_constant_variable(struct variable_table * cvt, struct variable_t * v, int val)
 {
-	if (DEBUG) printf("\nADDING CONSTANT %s = %d : %d\n", v->id, val, v);
+	if (DEBUG) printf("\nADDING CONSTANT %s = %d\n", v->id, val);
 	v->val.constant_value = val;
 	v->type = CONSTANT_TYPE;
 	cvt->t[cvt->current_index++] = v;
 }
 
-void add_expression(struct expression_table * et, struct op_code_t * e)
+int add_new_expression(struct expression_table * et, struct expression_value_number_t * e)
 {
 	et->t[et->current_index++] = e;
-	e->val.value_number = current_value_number;
+	e->value_number = current_value_number++;
+	if (DEBUG) printf("\nADDING NEW EXPRESSION VALUE NUMBER v_%d %s v_%d : v_%d\n",
+		e->v1, opToChar(e->op), e->v2, e->value_number);
+	return e->value_number;
+}
+
+void add_expression(struct expression_table * et, struct expression_value_number_t * e, int value_number)
+{
+	et->t[et->current_index++] = e;
+	e->value_number = value_number;
+	if (DEBUG) printf("\nADDING EXPRESSION VALUE NUMBER v_%d %s v_%d : v_%d\n",
+		e->v1, opToChar(e->op), e->v2, value_number);
 }
 
 void add_label(struct label_t * l)

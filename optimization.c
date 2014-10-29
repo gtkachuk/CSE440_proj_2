@@ -11,6 +11,7 @@
 #include "usrdef.h"
 #include "symtab.h"
 #include "optimization.h"
+#include "symtab.h"
 
 struct  program_t *prog;
 //this is temporary, can change to dynamically expand later
@@ -182,23 +183,23 @@ void build_cfg(){
 }
 
 
-void print_bb_list(){
-
-  int i; 
-  for (i = 0; i<bb_idx; i++)
-  {
-	printf("\nBASIC BLOCK %d\n", i);
-	printf("Entry:\n");
-    print_line(bb_list[i]->entry);
-    printf("Exit:\n");
-    print_line(bb_list[i]->exit);
-	printf("\nVARIABLE TABLE\n");
-	variable_table_print(bb_list[i]->vt);
-	printf("\nCONSTANT TABLE\n");
-	constant_variable_table_print(bb_list[i]->cvt);
-	printf("\nEXPRESSION TABLE\n");
-	expression_table_print(bb_list[i]->et);
-  }
+void print_bb_list()
+{
+	int i; 
+	for (i = 0; i<bb_idx; i++)
+	{
+		printf("\nBASIC BLOCK %d ########################################\n", i);
+		printf("Entry:\n");
+		print_line(bb_list[i]->entry);
+		printf("Exit:\n");
+		print_line(bb_list[i]->exit);
+		printf("\nVARIABLE TABLE\n");
+		variable_table_print(bb_list[i]->vt);
+		printf("\nCONSTANT TABLE\n");
+		constant_variable_table_print(bb_list[i]->cvt);
+		printf("\nEXPRESSION TABLE\n");
+		expression_table_print(bb_list[i]->et);
+	}
 }
 
 void print_line(struct code_t* code){
@@ -257,13 +258,223 @@ void populate_value_numbers()
 		{
 			struct basic_block_t * bb = bb_list[i];
 			struct code_t * temp_code = bb->entry;
-			int val_num = -1;
 			while (temp_code != NULL)
 			{
+				int val_num = NO_VALUE_NUMBER;
+
 				switch (temp_code->type)
 				{
 					case (T_OP_CODE) :
-						//if (temp_code->t.op_code->)
+						// a = 1 + 1
+						// this will also handle a = 1 * 0
+						if (temp_code->t.op_code->v1->type == CONSTANT_TYPE &&
+							temp_code->t.op_code->v2->type == CONSTANT_TYPE)
+						{
+							if (DEBUG) printf("\n\nIN OC0:\n"); if (DEBUG) print_line(temp_code);
+
+							int val1 = temp_code->t.op_code->v1->val.constant_value;
+							int val2 = temp_code->t.op_code->v2->val.constant_value;
+							int new_val;
+							switch (temp_code->t.op_code->op)
+							{
+								case PLUS:
+									new_val = val1 + val2;
+									break;
+								case STAR:
+									new_val = val1 * val2;
+									break;
+								case MINUS:
+									new_val = val1 - val2;
+									break;
+								case SLASH:
+									new_val = val1 / val2;
+									break;
+								case MOD:
+									new_val = val1 % val2;
+									break;
+							}
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								change_value_for_constant_var(bb->cvt,
+									temp_code->t.op_code->assigned,
+									new_val);
+							}
+							else
+							{
+								add_constant_variable(bb->cvt,
+									temp_code->t.op_code->assigned,
+									new_val);
+							}
+							// we have an a = 2
+							// so if a is in the the value_number table, remove the value_number
+							if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								delete_value_number_for_var(bb->vt, temp_code->t.op_code->assigned);
+							}
+						}
+
+						// have one constant, check for * 0 or + 0
+						else if (temp_code->t.op_code->v1->type == CONSTANT_TYPE ||
+								 temp_code->t.op_code->v2->type == CONSTANT_TYPE)
+						{
+							int val1 = temp_code->t.op_code->v1->val.constant_value;
+							int val2 = temp_code->t.op_code->v2->val.constant_value;
+							int new_val;
+							struct variable_t * var;
+							if (val1 == NO_VALUE_NUMBER) // v1 is the variable
+							{
+								new_val = val2;
+								var = temp_code->t.op_code->v1;
+							}
+							else
+							{
+								new_val = val1;
+								var = temp_code->t.op_code->v2;
+							}
+
+							if (new_val == 0)
+							{
+								switch (temp_code->t.op_code->op)
+								{
+									case PLUS: // add 0
+										if (DEBUG) printf("\n\nIN OC1:\n"); if (DEBUG) print_line(temp_code);
+										if ((val_num = value_number_for_var(bb->vt, var)) == NO_VALUE_NUMBER)
+										{
+											val_num = add_new_variable(bb->vt, var);
+										}
+										// b now has a value_number, give it to a
+										int assigned_val_num;
+										if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											// a has an entry already, update it
+											change_value_number_for_var(bb->vt, temp_code->t.op_code->assigned, val_num);
+										}
+										else
+										{
+											// a doesnt have an entry, add it
+											add_variable(bb->vt,
+												temp_code->t.op_code->assigned,
+												val_num);
+										}
+										//remove the assigned from the constant table if it is there.
+										if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
+										}
+										break;
+									case STAR: // multiply by 0
+										if (DEBUG) printf("\n\nIN OC2:\n"); if (DEBUG) print_line(temp_code);
+										if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											change_value_for_constant_var(bb->cvt,
+												temp_code->t.op_code->assigned,
+												0);
+										}
+										else
+										{
+											add_constant_variable(bb->cvt,
+												temp_code->t.op_code->assigned,
+												0);
+										}
+										// we have an a = 2
+										// so if a is in the the value_number table, remove the value_number
+										if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											delete_value_number_for_var(bb->vt, temp_code->t.op_code->assigned);
+										}
+										break;
+								}
+							}
+							else
+							{
+								if (DEBUG) printf("\n\nIN OC3:\n"); if (DEBUG) print_line(temp_code);
+								if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									// a has an entry already, update it, make it different because we modified it
+									change_value_number_for_var(bb->vt, temp_code->t.op_code->assigned, bb->vt->current_index++);
+								}
+								else
+								{
+									// a doesnt have an entry, add it
+									add_variable(bb->vt,
+										temp_code->t.op_code->assigned,
+										var->val.value_number);
+								}
+							}
+						}
+						else
+						{
+							// no we only have 2 variables - expression fun time
+							int v1 = value_number_for_var(bb->vt, temp_code->t.op_code->v1);
+							if (v1 == NO_VALUE_NUMBER)
+							{
+								// create new value number
+								if (DEBUG) printf("\n\nIN OC4:\n"); if (DEBUG) print_line(temp_code); 
+								v1 = add_new_variable(bb->vt, temp_code->t.op_code->v1);
+								printf("\n\nLOOKING AT : %d\n\n", temp_code->t.op_code->v1);
+							}
+							int v2 = value_number_for_var(bb->vt, temp_code->t.op_code->v2);
+							if (v2 == NO_VALUE_NUMBER)
+							{
+								// create new value number
+								if (DEBUG) printf("\n\nIN OC5:\n"); if (DEBUG) print_line(temp_code); 
+								v2 = add_new_variable(bb->vt, temp_code->t.op_code->v2);
+							}
+							// a = b - c where b = c -> a = 0
+							if (v1 == v2 && temp_code->t.op_code->op == MINUS)
+							{
+								if (DEBUG) printf("\n\nIN OC6:\n"); if (DEBUG) print_line(temp_code);
+								if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									change_value_for_constant_var(bb->cvt,
+										temp_code->t.op_code->assigned,
+										0);
+								}
+								else
+								{
+									add_constant_variable(bb->cvt,
+										temp_code->t.op_code->assigned,
+										0);
+								}
+								if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									delete_value_number_for_var(bb->vt, temp_code->t.op_code->assigned);
+								}
+							}
+							else
+							{
+								if (DEBUG) printf("\n\nIN OC7:\n"); if (DEBUG) print_line(temp_code);
+								// check if expression already exists
+								struct expression_value_number_t * e = new_expression_value_number();
+								e->v1 = v1;
+								e->v2 = v2;
+								e->op = temp_code->t.op_code->op;
+								if ((val_num = value_number_for_expression(bb->et, e)) == NO_VALUE_NUMBER)
+								{
+									//it doesn't, create it
+									val_num = add_new_expression(bb->et, e);
+								}
+								int assigned_val_num;
+								if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									// a has an entry already, update it
+									change_value_number_for_var(bb->vt, temp_code->t.op_code->assigned, val_num);
+								}
+								else
+								{
+									// a doesnt have an entry, add it
+									add_variable(bb->vt,
+										temp_code->t.op_code->assigned,
+										val_num);
+								}
+								//remove the assigned from the constant table if it is there.
+								if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
+								}
+							}
+						}
+
 						break;
 					case (T_GOTO_CODE) :
 						break;
@@ -275,24 +486,34 @@ void populate_value_numbers()
 						// assigning a constant to a variable, add it to the constant table for now
 						if (temp_code->t.assign_code->v1->type == CONSTANT_TYPE)
 						{
-							printf("IN VN1: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1);
-							add_constant_variable(bb->cvt,
-								temp_code->t.assign_code->assigned,
-								temp_code->t.assign_code->v1->val.constant_value);
-							// we have an a = 1, so if a is in the the value_number table, remove the value_number
-							if ((val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != -1)
+							if (DEBUG) printf("\n\nIN AC1:\n"); if (DEBUG) print_line(temp_code);
+							printf("\n\nLOOKING AT : %d\n\n", temp_code->t.assign_code->assigned);
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								change_value_for_constant_var(bb->cvt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.constant_value);
+							}
+							else
+							{
+								add_constant_variable(bb->cvt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.constant_value);
+							}
+							// we have an a = 1
+							// so if a is in the the value_number table, remove the value_number
+							if ((val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
 							{
 								delete_value_number_for_var(bb->vt, temp_code->t.assign_code->assigned);
 							}
 						}
 						// we have an a = b situation
 						// b has a value_number, give it to a
-						// remove a from the constant table if applicable
-						else if ((val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->v1)) != -1)
+						else if ((val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->v1)) != NO_VALUE_NUMBER)
 						{
 							int assigned_val_num;
-							printf("IN VN2: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1);
-							if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != -1)
+							if (DEBUG) printf("\n\nIN AC2:\n"); if (DEBUG) print_line(temp_code);
+							if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
 							{
 								change_value_number_for_var(bb->vt, temp_code->t.assign_code->assigned, val_num);
 							}
@@ -302,29 +523,42 @@ void populate_value_numbers()
 									temp_code->t.assign_code->assigned,
 									temp_code->t.assign_code->v1->val.value_number);
 							}
-							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != -1)
+							// remove a from the constant table if applicable
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
 							{
 								delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
 							}
 						}
 						// for a = b and b is a constant, make a a constant with the same value
-						else if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->v1)) != -1)
+						else if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->v1)) != NO_VALUE_NUMBER)
 						{
-							printf("IN VN3: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1); 
+							if (DEBUG) printf("\n\nIN AC3:\n"); if (DEBUG) print_line(temp_code);
 							add_constant_variable(bb->cvt,
 								temp_code->t.assign_code->assigned,
 								val_num);
 						}
+						// a = b and b does not have a value number
 						else
 						{
-							printf("IN VN4: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1); 
+							if (DEBUG) printf("\n\nIN AC4:\n"); if (DEBUG) print_line(temp_code);
 							add_new_variable(bb->vt,
 								temp_code->t.assign_code->v1);
-							add_variable(bb->vt,
-								temp_code->t.assign_code->assigned,
-								temp_code->t.assign_code->v1->val.value_number);
+							// b now has a value_number, give it to a
+							int assigned_val_num;
+							if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								// a has an entry already, update it
+								change_value_number_for_var(bb->vt, temp_code->t.assign_code->assigned, val_num);
+							}
+							else
+							{
+								// a doesnt have an entry, add it
+								add_variable(bb->vt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.value_number);
+							}
 							//remove the assigned from the constant table if it is there.
-							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != -1)
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
 							{
 								delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
 							}

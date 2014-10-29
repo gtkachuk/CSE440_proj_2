@@ -24,6 +24,7 @@
 #define VARIABLETYPE 4
 #define VARIABLEARRAYTYPE 5
 
+#define NO_VALUE_NUMBER -99999 // hopefully this number doesnt come up!
 
 #define NOTYPEFOUND -1
 
@@ -60,9 +61,10 @@ struct variable_table
 
 struct expression_table
 {
-	struct op_code_t * t[MAXSYMBOLS];
+	struct expression_value_number_t * t[MAXSYMBOLS];
 	int current_index;
 };
+
 
 void symtab_init();
 void symtab_print(int numOfTabs);
@@ -82,17 +84,29 @@ struct symbol * addClass(char * _name, int _lineNumber, struct variable_declarat
 void delend(struct identifier_list_t **l);
 
 struct label_t * labelForID(char * id);
+
 int value_number_for_var(struct variable_table * vt, struct variable_t * v);
 int value_for_constant_var(struct variable_table * cvt, struct variable_t * v);
-int value_number_for_expression(struct expression_table * et, struct op_code_t * e);
+int value_number_for_expression(struct expression_table * et, struct expression_value_number_t * e);
 
-void add_new_variable(struct variable_table * vt, struct variable_t * v);
+int add_new_variable(struct variable_table * vt, struct variable_t * v);
 void add_variable(struct variable_table * vt, struct variable_t * v, int value_number);
 void add_constant_variable(struct variable_table * vt, struct variable_t * v, int val);
-void add_expression(struct expression_table * et, struct op_code_t * e);
+int add_new_expression(struct expression_table * et, struct expression_value_number_t * e);
+void add_expression(struct expression_table * et, struct expression_value_number_t * e, int value_number);
 void add_label(struct label_t * l);
 
-int index_for_expression(struct expression_table * et, struct op_code_t * e);
+struct variable_t * get_variable(char * id);
+
+void delete_value_number_for_var(struct variable_table * vt, struct variable_t * v);
+void delete_value_for_constant_var(struct variable_table * cvt, struct variable_t * v);
+void delete_value_number_for_expression(struct expression_table * et, struct expression_value_number_t * e);
+
+void change_value_number_for_var(struct variable_table * vt, struct variable_t * v, int value_number);
+void change_value_for_constant_var(struct variable_table * cvt, struct variable_t * v, int constant_value);
+void change_value_number_for_expression(struct expression_table * et, struct expression_value_number_t * e, int value_number);
+
+int index_for_expression(struct expression_table * et, struct expression_value_number_t * e);
 void variable_table_print(struct variable_table * vt);
 void constant_variable_table_print(struct variable_table * cvt);
 void expression_table_print(struct expression_table * et);

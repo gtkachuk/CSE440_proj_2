@@ -530,11 +530,16 @@ struct variable_t * new_variable(){
   struct variable_t *var;
   var = (struct variable_t*) malloc(sizeof(struct variable_t));
   var->id = NULL;
-  var->val.constant_value = 0;
-  var->val.value_number = -1;
+  var->val.constant_value = NO_VALUE_NUMBER;
+  var->val.value_number = NO_VALUE_NUMBER;
   return var;
 }
 
+struct expression_value_number_t * new_expression_value_number()
+{
+	struct expression_value_number_t * evn =
+		(struct expression_value_number_t*) malloc(sizeof(struct expression_value_number_t));
+}
 
 /* ----------------------------------------------------------------------- 
  * Returns a pointer to a new statement_sequence
