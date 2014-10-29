@@ -456,11 +456,16 @@ struct if_code_t{
 struct basic_block_t{
   struct code_t *entry;
   struct code_t *exit;
+  struct basic_block_t *left;
+  struct basic_block_t *right;
+  int num;
+  int printed;
   int num_incoming;
   struct variable_table * vt;
   struct variable_table * cvt;
   struct expression_table * et;
 };
+  
 
 struct expression_value_number_t
 {
