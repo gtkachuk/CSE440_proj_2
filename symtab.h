@@ -80,14 +80,21 @@ struct symbol * addVariable(char * _name, int _lineNumber, struct type_denoter_t
 struct symbol * addFunction(char * _name, int _lineNumber, struct identifier_list_t * _scope);
 struct symbol * addClass(char * _name, int _lineNumber, struct variable_declaration_list_t * _vdl, struct identifier_list_t * _scope);
 void delend(struct identifier_list_t **l);
-int valueNumberForVar(struct variable_table * vt, struct variable_t * v);
-int valueNumberForExpression(struct expression_table * et, struct op_code_t * e);
-int lineNumberForLabel(struct label_t * l);
+
 struct label_t * labelForID(char * id);
-void addvariable(struct variable_table * vt, struct variable_t * v);
-void addExpression(struct expression_table * et, struct op_code_t * e);
-void addLabel(struct label_t * l);
-void variable_table_print();
-void expression_table_print();
+int value_number_for_var(struct variable_table * vt, struct variable_t * v);
+int value_for_constant_var(struct variable_table * cvt, struct variable_t * v);
+int value_number_for_expression(struct expression_table * et, struct op_code_t * e);
+
+void add_new_variable(struct variable_table * vt, struct variable_t * v);
+void add_variable(struct variable_table * vt, struct variable_t * v, int value_number);
+void add_constant_variable(struct variable_table * vt, struct variable_t * v, int val);
+void add_expression(struct expression_table * et, struct op_code_t * e);
+void add_label(struct label_t * l);
+
+int index_for_expression(struct expression_table * et, struct op_code_t * e);
+void variable_table_print(struct variable_table * vt);
+void constant_variable_table_print(struct variable_table * cvt);
+void expression_table_print(struct expression_table * et);
 void label_table_print();
 #endif

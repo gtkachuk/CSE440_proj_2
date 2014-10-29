@@ -461,6 +461,9 @@ struct basic_block_t{
   int num;
   int printed;
   int num_incoming;
+  struct variable_table * vt;
+  struct variable_table * cvt;
+  struct expression_table * et;
 };
   
 
