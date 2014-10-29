@@ -34,8 +34,9 @@ extern void dprint(char * str);
 
 /********** UTILITIES **************************/
 //remove the block from the list of blocks 
-void remove_from_list(struct basic_block_t *bb)
+int remove_from_list(struct basic_block_t *bb)
 {
+  int change = 0;
   int i,j;
   for (i=0; i<bb_idx; i++)
   {
@@ -46,14 +47,15 @@ void remove_from_list(struct basic_block_t *bb)
         bb_list[j-1] = bb_list[j];
       }
       bb_idx--;
+      change = 1;
     }
     
   }
-  printf("ERROR COULD NOT FIND IN LIST\n");
   for (i=0; i<bb_idx;i++)
   {
     remove_parent(bb_list[i], bb);
   }
+  return change;
 }
 
 //add block to the list of blocks parents, keep track of incoming nodes
@@ -136,6 +138,7 @@ void optimize(struct program_t *p)
   populate_value_numbers();
   printf("-----------------PRINTING BB TREE---------------\n");
   print_bb_tree(bb_list[0]);
+  remove_dangling();
   remove_dummies(bb_list[0]);
   build_ebb();
   print_ebb_list();
@@ -378,6 +381,23 @@ void build_cfg(){
       //point the BB of goto to the BB under label
       bb_list[i]->left = find_bb_by_code(labelForID(bb_list[i]->exit->t.goto_code->label_id)->next_ss->s->code);
       add_parent(bb_list[i]->left, bb_list[i]);
+    }
+  }
+}
+
+void remove_dangling()
+{
+  int change = 1;
+  int i;
+  while(change == 1){
+    change = 0;
+    for (i=1;i<bb_idx;i++)
+    {
+      if(bb_list[i]->num_incoming == 0)
+      {
+        if(remove_from_list(bb_list[i]) != 0)
+          change = 1;
+      }
     }
   }
 }
