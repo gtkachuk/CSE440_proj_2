@@ -807,9 +807,9 @@ void populate_value_numbers()
 							if (v1 == NO_VALUE_NUMBER)
 							{
 								// create new value number
-								if (DEBUG) printf("\n\nIN OC4:\n"); if (DEBUG) print_line(temp_code); 
+								if (DEBUG) printf("\n\nIN OC4: \n"); if (DEBUG) print_line(temp_code); 
 								v1 = add_new_variable(bb->vt, temp_code->t.op_code->v1);
-								printf("\n\nLOOKING AT : %d\n\n", temp_code->t.op_code->v1);
+								printf("\n\nLOOKING AT : %d %d\n\n", temp_code->t.op_code->v1, temp_code->t.op_code->v1->type);
 							}
 							int v2 = value_number_for_var(bb->vt, temp_code->t.op_code->v2);
 							if (v2 == NO_VALUE_NUMBER)

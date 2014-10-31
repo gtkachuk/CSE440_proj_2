@@ -575,7 +575,7 @@ struct variable_t * get_variable(char * id)
 			struct variable_t * temp = global_variable_table->t[i];
 			if (strcasecmp(id, temp->id) == 0)
 			{
-				printf("RETURNING %s", id);
+				printf("RETURNING %s %d\n", id, temp);
 				return temp;
 			}
 		}
@@ -586,7 +586,7 @@ struct variable_t * get_variable(char * id)
 	v->type = VARIABLE_TYPE;
 	v->val.value_number = NO_VALUE_NUMBER;
 	global_variable_table->t[global_variable_table->current_index++] = v;
-	if (DEBUG) printf("\nADDING NEW GLOBAL VARIABLE %s\n", v->id);
+	if (DEBUG) printf("\nADDING NEW GLOBAL VARIABLE %s %d\n", v->id, v);
 	return v;
 }
 
@@ -610,7 +610,7 @@ void add_variable(struct variable_table * vt, struct variable_t * v, int value_n
 
 void add_constant_variable(struct variable_table * cvt, struct variable_t * v, int val)
 {
-	if (DEBUG) printf("\nADDING CONSTANT %s = %d\n", v->id, val);
+	if (DEBUG) printf("\nADDING CONSTANT %s = %d : %d\n", v->id, val, v);
 	v->val.constant_value = val;
 	v->type = CONSTANT_TYPE;
 	cvt->t[cvt->current_index++] = v;
