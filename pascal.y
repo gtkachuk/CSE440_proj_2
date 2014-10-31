@@ -517,6 +517,7 @@ statement_sequence : statement
 		$$->next = $3;
     $$->code = $1->code;
     
+    
 	}
  | label statement_sequence
     {
@@ -527,6 +528,7 @@ statement_sequence : statement
 		$$->s = new_statement();
 		$$->s->type = STATEMENT_T_LABEL;
 		$$->s->data.l = $1;
+    $$->s->data.l->next_ss = $2;
 		// add label next_ss here
     }
 ;
@@ -636,7 +638,8 @@ assignment_statement : variable_access ASSIGNMENT expression
 		$$->e = $3;
 		struct code_t * newcode = new_code();
 		newcode->t.assign_code = new_assign_code();
-		newcode->t.assign_code->assigned = get_variable($1->data.id);
+		newcode->t.assign_code->assigned = new_variable();
+		newcode->t.assign_code->assigned->id = $1->data.id;
 		newcode->t.assign_code->v1 = $3->var;
 		newcode->type = T_ASSIGN_CODE;
 		if ($3->code != NULL)
