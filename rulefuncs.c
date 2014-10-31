@@ -12,6 +12,14 @@
 int tempVarIndex = 0;
 
 
+struct expr_t *new_expr()
+{
+  struct expr_t *expr = (struct expr_t*)malloc(sizeof(struct expr_t));
+  expr->v1 = NULL;
+  expr->v2 = NULL;
+  expr->op = -1;
+  return expr;
+}
 /* ----------------------------------------------------------------------- 
  * Returns a pointer to a new identifier_list
  * ----------------------------------------------------------------------- 
@@ -1166,3 +1174,5 @@ char * nextTempId()
 		return s;
 	}
 }
+
+

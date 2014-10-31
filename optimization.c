@@ -31,8 +31,33 @@ int true_exit;
 int false_exit;
 int     if_flag;
 extern void dprint(char * str);
-
+/*all expressions in the code*/
+struct expr_t *all_expr[MAXSYMBOLS*MAXSYMBOLS];
+int expr_idx;
 /********** UTILITIES **************************/
+//compares two variable_t's
+int var_equal(struct variable_t *v1, struct variable_t *v2)
+{
+  int equal = 0;
+  //this is wrong we need to compare types, but the types are not being assigned as I thought they were.
+  //if(v1->type == v2->type)
+  //{
+    if(strcmp(v1->id, v2->id) == 0)
+    {
+      equal = 1;
+    }
+  //}
+  return equal;
+}
+
+int expr_equal(struct expr_t *expr1, struct expr_t *expr2)
+{
+  int equal = 0;
+  if(var_equal(expr1->v1, expr2->v1) && var_equal(expr1->v2, expr2->v2))// && (expr1->op == expr2->op))
+    equal = 1;
+  return equal; 
+}
+
 //remove the block from the list of blocks 
 int remove_from_list(struct basic_block_t *bb)
 {
@@ -129,7 +154,7 @@ void optimize(struct program_t *p)
   prog = p;
   temp_cl = p->cl;
   ss = temp_cl->cb->fdl->fd->fb->ss;
-  bb_idx = 0;
+  bb_idx = expr_idx = wl_idx = ebb_idx = ebb_first = 0;
   //if statement sequence has code
   //get first code statement, start building basic blocks
   process_code(ss);
@@ -142,6 +167,15 @@ void optimize(struct program_t *p)
   remove_dummies(bb_list[0]);
   build_ebb();
   print_ebb_list();
+  printf("----------------PRINTING GRE INFO --------------\n");
+  find_all_expressions();
+  int i;
+  for (i=0;i<bb_idx;i++)
+  {
+    populate_de_expr(bb_list[i]);
+    populate_not_expr_kill(bb_list[i]);
+  }
+  populate_avail_in();
   printf("-----------------PRINTING BB LIST---------------\n");
   print_bb_list();
 
@@ -161,6 +195,8 @@ struct basic_block_t *new_bb(struct code_t *entry, struct code_t *exit)
   bb->ebb_root = 0;
   bb->num = -1;
   bb->dummies_removed = 0;
+  bb->de_expr_idx = bb->kill_idx = bb->avail_idx = 0;
+  bb->avail_map = bb->de_map = 0;
   bb->vt = (struct variable_table*)malloc(sizeof(struct variable_table));
   bb->cvt = (struct variable_table*)malloc(sizeof(struct variable_table)); 
   bb->et = (struct expression_table*)malloc(sizeof(struct expression_table));
@@ -526,6 +562,11 @@ int wl_empty(){
 
 
 /****************************** PRINT FUNCTIONS ***********/
+void print_expr(struct expr_t *expr)
+{
+  printf("EXPR: %s %s %s\n", expr->v1->id, opToChar(expr->op), expr->v2->id);
+  
+}
 void print_ebb_list()
 {
   int i;
@@ -643,7 +684,220 @@ void print_line(struct code_t* code){
       }
     }
 }
+
+void print_gre_sets(struct basic_block_t *bb)
+{
+
+}
 /************************** END PRINT FUNCTIONS ***********/
+
+void find_all_expressions()
+{
+  int i;
+  //for each block in the list 
+  for(i=0;i<bb_idx;i++)
+  {
+    struct basic_block_t *bb = bb_list[i];
+    struct code_t *code = bb->entry;
+    //check every code in bb
+    //not sure what exit->next might point to
+    while(code != NULL && code != bb->exit->next)
+    {
+      print_line(code);
+      //2 address expression can only come in an OP_CODE
+      if(code->type == T_OP_CODE)
+      {
+        struct expr_t *expr = new_expr();
+        expr->v1 = code->t.op_code->v1;
+        expr->op = code->t.op_code->op;
+        expr->v2 = code->t.op_code->v2;
+        if(get_index(expr) == -1)
+        {
+          all_expr[expr_idx++] = expr;
+          print_expr(expr);
+        }
+      }
+      code = code->next;
+    }
+  } 
+  
+}
+
+void populate_de_expr(struct basic_block_t *bb){
+  struct code_t *code = bb->entry;
+
+  //for each evaluation:
+  while(code != bb->exit->next) 
+  {
+    //make an expression out of the code if code is of form 'a = b + c' 
+    if (code->type == T_OP_CODE)
+    {
+      struct expr_t *expr = new_expr();
+      int exposed = 1;
+      expr->v1 = code->t.op_code->v1;
+      expr->v2 = code->t.op_code->v2;
+      //check if redefined until the end of the block
+      struct code_t *temp = code->next;
+      while(temp != NULL && temp != bb->exit->next)
+      {
+        if(temp->type == T_OP_CODE)
+        {
+          if (var_equal(expr->v1, temp->t.op_code->assigned)
+              || var_equal(expr->v2, temp->t.op_code->assigned))
+          {
+            exposed = 0;
+            break;
+          }
+        }
+        else if (temp->type == T_ASSIGN_CODE)
+        {
+          if(var_equal(expr->v1, temp->t.assign_code->assigned)
+              || var_equal(expr->v2, temp->t.assign_code->assigned))
+          {
+            exposed = 0;
+            break;
+          }
+        }
+
+        temp = temp->next; 
+      }
+      //if exposed add to the set of downward exposed variables
+      if (exposed)
+      {
+        bb->de_expr[bb->de_expr_idx++] = expr;
+        bb->de_map = bb->de_map | ((unsigned long long)1 << get_index(expr));
+      }
+    }
+    code = code->next;
+  }
+  if (DEBUG) printf("BB_%d: DE: %llu", bb->num, bb->de_map);
+}
+
+//return the index of the expression in the 'all' table.
+int get_index(struct expr_t *expr)
+{
+  int i;
+  for(i=0;i<expr_idx;i++)
+  {
+    if(expr_equal(expr, all_expr[i]))
+      return i;
+  }
+  return -1;
+}
+
+struct expr_t *get_expr_by_idx(int i){
+  return all_expr[i];
+}
+
+
+void populate_not_expr_kill(struct basic_block_t *bb)
+{
+  struct code_t *code = bb->entry;
+  bb->kill_map = (0xFFFFFFFFFFFFFFFF >> (64-expr_idx));
+
+  int i;
+  for(i=0;i<expr_idx;i++)
+  {
+    bb->not_expr_kill[i] = all_expr[i];
+  }
+  while(code != bb->exit->next)
+  {
+    if (code->type == T_OP_CODE)
+    {
+      int i;
+      for (i=0;i<expr_idx;i++)
+      {
+        //match any of the 2 variables to kill it
+        if(var_equal(code->t.op_code->assigned, all_expr[i]->v1) 
+          || var_equal(code->t.op_code->assigned, all_expr[i]->v2))
+        {
+          //bb->not_expr_kill[bb->kill_idx++] = all_expr[i];
+          bb->kill_map = bb->kill_map & ~((unsigned long long)1<< i);
+        }
+//do nothing
+        //we are interested in expressions which are not killed in this block
+        else 
+        {
+                  }
+      }
+    }
+    else if (code->type == T_ASSIGN_CODE)
+    {
+      int i;
+      for (i=0;i<expr_idx;i++)
+      {
+        //match any of the 2 variables to kill it
+        if(var_equal(code->t.assign_code->assigned, all_expr[i]->v1) 
+          || var_equal(code->t.assign_code->assigned, all_expr[i]->v2))
+        {
+          bb->kill_map = bb->kill_map & ~((unsigned long long)1<< i);
+        } //do nothing
+
+        //we are interested in expressions which are not killed in this block
+        else 
+        {
+        }
+      }
+    }
+    code = code->next;
+  }
+  if (DEBUG) printf("NOT KILL: %llu\n",  bb->kill_map);
+}
+
+void populate_avail_in()
+{
+  int i,j,k;
+  
+  for(i=1;i<bb_idx;i++)
+  {
+    for(j=0;j<expr_idx;j++)
+    {
+      bb_list[i]->avail_in[j] = all_expr[j];
+    }
+    bb_list[i]->avail_map = 0xFFFFFFFFFFFFFFFF >> (64-expr_idx); //all expressions
+  }
+  
+
+  int changed = 1;
+  //main equations
+  while(changed != 0)
+  {
+    changed = 0;
+    for(i=0;i<bb_idx;i++)
+    {
+      unsigned long long map = 0xFFFFFFFFFFFFFFFF >> (64-expr_idx);
+      unsigned long long old_map = bb_list[i]->avail_map;
+
+      
+      //for each predecessor
+      for (j=0;j<bb_list[i]->num_incoming;j++)
+      {
+        map = map & (bb_list[i]->parents[j]->de_map | (bb_list[i]->parents[j]->avail_map & bb_list[i]->parents[j]->kill_map));
+      }
+      if (bb_list[i]->num_incoming == 0)
+      {
+        bb_list[i]->avail_map = 0;
+      } 
+      else
+        bb_list[i]->avail_map = map;
+
+      if(old_map != bb_list[i]->avail_map)
+        changed = 1;
+
+      printf("GRE:::: AVAIL MAP OF %d = %llu\n", i, bb_list[i]->avail_map);
+
+      for (k=0;k<expr_idx;k++)
+      {
+        if ((bb_list[i]->avail_map << k) > 0)
+        {
+          bb_list[i]->avail_in[bb_list[i]->avail_idx++] = all_expr[k];
+        }
+      }
+    }
+  }
+}
+
+
 
 // populate the value_number table for the basic block as well as the constant_value_number_table
 // will perform constant folding at the same time

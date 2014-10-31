@@ -17,6 +17,7 @@
 #define MAX_USRDEF_HASHKEYS 8
 #define MAX_SYMTAB_HASHKEYS 26
 #define PROGRAMNAME "opc"
+#define MAXEXPRESSIONS 64
 
 #define PRIMITIVE_TYPE_NAME_INTEGER "integer"
 #define PRIMITIVE_TYPE_NAME_BOOLEAN "boolean"
@@ -473,6 +474,24 @@ struct basic_block_t{
   struct variable_table * vt;
   struct variable_table * cvt;
   struct expression_table * et;
+  /*----global redundancy elimination---*/
+  struct expr_t *avail_in[MAXEXPRESSIONS];
+  struct expr_t *de_expr[MAXEXPRESSIONS];
+  struct expr_t *not_expr_kill[MAXEXPRESSIONS];
+  int de_expr_idx;
+  int kill_idx;
+  int avail_idx;
+  unsigned long long avail_map;
+  unsigned long long kill_map;
+  unsigned long long de_map;
+
+};
+
+/*---for global redundancy elimination equations */
+struct expr_t {  
+  int op;
+  struct variable_t *v1;
+  struct variable_t *v2;
 };
   
 

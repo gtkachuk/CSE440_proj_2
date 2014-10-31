@@ -95,5 +95,6 @@ struct goto_code_t * new_goto_code();
 char * nextTempId();
 struct goto_statement_t *new_goto_statement();
 struct label_t * new_label();
+struct expr_t *new_expr();
 #endif
 
