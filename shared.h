@@ -5,7 +5,7 @@
 
 #ifndef SHARED_H
 #define SHARED_H
-#define DEBUG 1
+#define DEBUG 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -465,6 +465,7 @@ struct basic_block_t{
   struct basic_block_t *right;
   int num;
   int printed;
+  int ebb_value_numbering_done;
   int num_incoming;
   /*----EBB stuff----*/
   int ebb_num;

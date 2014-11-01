@@ -23,6 +23,9 @@ struct basic_block_t *ebb_roots[MAX_BASIC_BLOCKS];
 int wl_idx;
 int ebb_idx;
 int ebb_first;
+//for extended value numbering:
+struct basic_block_t *ebb_stack[MAX_BASIC_BLOCKS];
+int ebb_stack_idx;
 /*--------------------*/
 struct cfg_t *cfg_list[MAX_BASIC_BLOCKS];
 int     bb_idx;
@@ -107,7 +110,7 @@ void remove_parent(struct basic_block_t *child, struct basic_block_t* parent)
     }
     
   }
-  printf("ERROR COULD NOT FIND PARENT\n");
+ if (DEBUG)  printf("ERROR COULD NOT FIND PARENT\n");
   exit_on_errors();
 }
 
@@ -143,6 +146,27 @@ struct basic_block_t* find_bb_by_exit(struct code_t *code)
   }
   return NULL;
 }
+
+void stack_push(struct basic_block_t *bb)
+{
+  ebb_stack[ebb_stack_idx++] = bb;
+}
+
+struct basic_block_t *stack_pop()
+{
+  struct basic_block_t *bb;
+  
+  bb = ebb_stack[--ebb_stack_idx];
+  ebb_stack[ebb_stack_idx] = NULL; 
+  return bb;
+}
+
+struct basic_block_t *stack_peek()
+{
+  
+  return ebb_stack[ebb_stack_idx];
+  
+}
 /* ----------------------------------------------------------------------- 
  * Create BB and CFG structure
  * ----------------------------------------------------------------------- 
@@ -160,14 +184,27 @@ void optimize(struct program_t *p)
   process_code(ss);
   attach_labels();
   build_cfg();
-  populate_value_numbers();
-  printf("-----------------PRINTING BB TREE---------------\n");
-  print_bb_tree(bb_list[0]);
+  printf("-----------------INITIAL PRINT ----------------\n");
   remove_dangling();
   remove_dummies(bb_list[0]);
+  print_main();
+  if (DEBUG) printf("-----------------PRINTING BB TREE---------------\n");
+  if (DEBUG) print_bb_tree(bb_list[0]);
+  printf("-----------------PRINTING BB LIST---------------\n");
+  print_bb_list();
+
+  printf("---------------AFTER VALUE NUMBERING------------\n");
+  populate_value_numbers();
+  print_main();
+
+  printf("---------------AFTER EXTENDED VALUE NUMBERING----\n");
   build_ebb();
-  print_ebb_list();
-  printf("----------------PRINTING GRE INFO --------------\n");
+  if(DEBUG) print_ebb_list();
+  extended_value_numbering();
+  print_main();
+
+  if (DEBUG) print_ebb_list();
+  /*gre code*/
   find_all_expressions();
   int i;
   for (i=0;i<bb_idx;i++)
@@ -176,14 +213,10 @@ void optimize(struct program_t *p)
     populate_not_expr_kill(bb_list[i]);
   }
   populate_avail_in();
-  printf("-----------------PRINTING BB LIST---------------\n");
-  print_bb_list();
-  printf("-----------------BEFORE GRE ---------------\n");
-  print_program();
+  /*gre code end*/
   global_redundancy_transformation();
-  printf("-----------------AFTER GRE ---------------\n");
-  print_program();
-
+  printf("----AFTER GLOBAL REDUNDANCY ELIMINATION-----\n");
+  print_main();
   
   temp_cl = temp_cl->next;
 }
@@ -200,6 +233,7 @@ struct basic_block_t *new_bb(struct code_t *entry, struct code_t *exit)
   bb->ebb_root = 0;
   bb->num = -1;
   bb->dummies_removed = 0;
+  bb->ebb_value_numbering_done = 0;
   bb->de_expr_idx = bb->kill_idx = bb->avail_idx = 0;
   bb->avail_map = bb->de_map = 0;
   bb->vt = (struct variable_table*)malloc(sizeof(struct variable_table));
@@ -299,7 +333,7 @@ void process_code(struct statement_sequence_t *ss){
     //add dummies at the ends
     if (ss->s->type == STATEMENT_T_IF)
     {
-      printf("Process true and false branches\n");
+      if (DEBUG) printf("Process true and false branches\n");
       process_code(ss->s->data.is->s1);
       struct basic_block_t *left = bb_list[bb_idx-1];
       process_code(ss->s->data.is->s2);
@@ -323,7 +357,7 @@ void process_code(struct statement_sequence_t *ss){
       //process_code(ss->next);
     }
     else if (ss->s->type == STATEMENT_T_WHILE){
-      printf("Process while loop\n");
+      if (DEBUG) printf("Process while loop\n");
       struct code_t *dummy_code = new_code();
       struct basic_block_t *current = bb_list[bb_idx-1];
       dummy_code->type = T_DUMMY;
@@ -342,7 +376,7 @@ void process_code(struct statement_sequence_t *ss){
       //process_code(ss->next);
     }
     else if (ss->s->type == STATEMENT_T_GOTO){
-      printf("Process goto statement\n");
+      if(DEBUG) printf("Process goto statement\n");
       if (ss->next == NULL)
         break;
       else{
@@ -569,6 +603,10 @@ int wl_empty(){
 
 
 /****************************** PRINT FUNCTIONS ***********/
+void print_main()
+{
+  print_program();
+}
 void print_expr(struct expr_t *expr)
 {
   printf("EXPR: %s %s %s\n", expr->v1->id, opToChar(expr->op), expr->v2->id);
@@ -638,12 +676,12 @@ void print_bb_list(){
   for (i = 0; i<bb_idx; i++)
   {
     print_bb(bb_list[i]);
-    printf("\nVARIABLE TABLE\n");
-    variable_table_print(bb_list[i]->vt);
-    printf("\nCONSTANT TABLE\n");
-    constant_variable_table_print(bb_list[i]->cvt);
-    printf("\nEXPRESSION TABLE\n");
-    expression_table_print(bb_list[i]->et);
+    if (DEBUG) printf("\nVARIABLE TABLE\n");
+    if (DEBUG) variable_table_print(bb_list[i]->vt);
+    if (DEBUG) printf("\nCONSTANT TABLE\n");
+    if (DEBUG) constant_variable_table_print(bb_list[i]->cvt);
+    if (DEBUG) printf("\nEXPRESSION TABLE\n");
+    if (DEBUG) expression_table_print(bb_list[i]->et);
   }
 }
 
@@ -703,9 +741,9 @@ void print_program()
   int i;
   for(i=0;i<bb_idx;i++)
   {
-    struct code_t *code = bb_list[i]->entry;
     printf("BASIC BLOCK %d\n", i);
-    while(code != bb_list[0]->exit->next)
+    struct code_t *code = bb_list[i]->entry;
+    while(code != bb_list[i]->exit->next)
     {
       print_line(code);
       code = code->next;
@@ -915,10 +953,13 @@ void populate_avail_in()
 
 
 
+
+
+
 void  global_redundancy_transformation()
 {
   //for each block
-  int i,j,k;
+  int i,k;
   for(i=0;i<bb_idx;i++)
   {
     struct code_t *code = bb_list[i]->entry;
@@ -966,7 +1007,6 @@ void  global_redundancy_transformation()
             find_and_replace(bb->parents[k], expr, tj);
 
           //replace code with simple assignment
-          struct code_t *new = code;
           code->type = T_ASSIGN_CODE;
           //this is redundant because of how memory is distributed in structs but just in case:
           code->t.assign_code->assigned = code->t.op_code->assigned;
@@ -978,8 +1018,6 @@ void  global_redundancy_transformation()
     }
   }
 }
-
-
 void find_and_replace(struct basic_block_t *bb, struct expr_t *expr, struct variable_t *tj)
 {
   struct code_t *final = NULL;
@@ -1030,20 +1068,53 @@ void find_and_replace(struct basic_block_t *bb, struct expr_t *expr, struct vari
   }
 }
 
-void value_numbering_with_gre()
+void extended_value_numbering()
 {
-
-  
-  
-  //for each avail in - add the vales not only to the local tables but also to the global one. For each OP that matches the avail in for this block - copy the global tables into the local ones on entry
+  //repeat value numbering but keeping track of the stack of basic blocks
+  //copy the tables from stack to the bb being processed 
+  //we're keeping track of all EBB's by roots:
   int i;
-  
-	for (i = 0; i < MAX_BASIC_BLOCKS; i++)
-	{
-    //find the evaluations 
-		if (bb_list[i] != NULL)
+  //for each ebb root
+  for(i=0;i<ebb_idx;i++)
+  {
+    //traverse through the ebb doing value numbering for each block
+    //recursive function 
+    ebb_value_numbering(ebb_roots[i]);
+  }
+}
+
+void ebb_value_numbering(struct basic_block_t *bb)
+{
+  //do itself 
+  bb_value_numbering(bb);
+  bb->ebb_value_numbering_done = 1;
+  //push itself onto stack
+  stack_push(bb);
+  //do left if its in the same ebb
+  if(bb->left != NULL 
+    && bb->left->ebb_num == bb->ebb_num 
+    && !bb->left->ebb_value_numbering_done)
+    ebb_value_numbering(bb->left);
+  //do right
+  if(bb->right != NULL 
+    && bb->right->ebb_num == bb->ebb_num 
+    && !bb->right->ebb_value_numbering_done)
+    ebb_value_numbering(bb->right);
+  //pop itself from stack
+  stack_pop();
+}
+
+void bb_value_numbering(struct basic_block_t *bb)
+{
+   if(stack_peek() != NULL)
+  {
+    bb->vt = stack_peek()->vt;
+    bb->cvt = stack_peek()->cvt;
+    bb->et = stack_peek()->et;
+  }
+	int i;
+		if (bb != NULL)
 		{
-			struct basic_block_t * bb = bb_list[i];
 			struct code_t * temp_code = bb->entry;
 			while (temp_code != NULL)
 			{
@@ -1052,8 +1123,6 @@ void value_numbering_with_gre()
 				switch (temp_code->type)
 				{
 					case (T_OP_CODE) :
-            
-
 						// a = 1 + 1
 						// this will also handle a = 1 * 0
 						if (temp_code->t.op_code->v1->type == CONSTANT_TYPE &&
@@ -1200,7 +1269,7 @@ void value_numbering_with_gre()
 								// create new value number
 								if (DEBUG) printf("\n\nIN OC4: \n"); if (DEBUG) print_line(temp_code); 
 								v1 = add_new_variable(bb->vt, temp_code->t.op_code->v1);
-								printf("\n\nLOOKING AT : %d %d\n\n", temp_code->t.op_code->v1, temp_code->t.op_code->v1->type);
+								if(DEBUG) printf("\n\nLOOKING AT : %d %d\n\n", temp_code->t.op_code->v1, temp_code->t.op_code->v1->type);
 							}
 							int v2 = value_number_for_var(bb->vt, temp_code->t.op_code->v2);
 							if (v2 == NO_VALUE_NUMBER)
@@ -1263,6 +1332,7 @@ void value_numbering_with_gre()
 								}
 							}
 						}
+
 						break;
 					case (T_GOTO_CODE) :
 						break;
@@ -1275,7 +1345,7 @@ void value_numbering_with_gre()
 						if (temp_code->t.assign_code->v1->type == CONSTANT_TYPE)
 						{
 							if (DEBUG) printf("\n\nIN AC1:\n"); if (DEBUG) print_line(temp_code);
-							printf("\n\nLOOKING AT : %d\n\n", temp_code->t.assign_code->assigned);
+							if (DEBUG) printf("\n\nLOOKING AT : %d\n\n", temp_code->t.assign_code->assigned);
 							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
 							{
 								change_value_for_constant_var(bb->cvt,
@@ -1321,7 +1391,7 @@ void value_numbering_with_gre()
 						else if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->v1)) != NO_VALUE_NUMBER)
 						{
 							if (DEBUG) printf("\n\nIN AC3:\n"); if (DEBUG) print_line(temp_code);
-							printf("IN VN3: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
+							if (DEBUG) printf("IN VN3: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
 							add_constant_variable(bb->cvt,
 								temp_code->t.assign_code->assigned,
 								val_num);
@@ -1330,7 +1400,7 @@ void value_numbering_with_gre()
 						else
 						{
 							if (DEBUG) printf("\n\nIN AC4:\n"); if (DEBUG) print_line(temp_code);
-							printf("IN VN4: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
+							if (DEBUG) printf("IN VN4: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
 							add_new_variable(bb->vt,
 								temp_code->t.assign_code->v1);
 							// b now has a value_number, give it to a
@@ -1358,9 +1428,8 @@ void value_numbering_with_gre()
 				temp_code = temp_code->next;
 			}
 		}
-	}
-
 }
+
 
 // populate the value_number table for the basic block as well as the constant_value_number_table
 // will perform constant folding at the same time
@@ -1528,7 +1597,7 @@ void populate_value_numbers()
 								// create new value number
 								if (DEBUG) printf("\n\nIN OC4: \n"); if (DEBUG) print_line(temp_code); 
 								v1 = add_new_variable(bb->vt, temp_code->t.op_code->v1);
-								printf("\n\nLOOKING AT : %d %d\n\n", temp_code->t.op_code->v1, temp_code->t.op_code->v1->type);
+								if (DEBUG) printf("\n\nLOOKING AT : %d %d\n\n", temp_code->t.op_code->v1, temp_code->t.op_code->v1->type);
 							}
 							int v2 = value_number_for_var(bb->vt, temp_code->t.op_code->v2);
 							if (v2 == NO_VALUE_NUMBER)
@@ -1604,7 +1673,7 @@ void populate_value_numbers()
 						if (temp_code->t.assign_code->v1->type == CONSTANT_TYPE)
 						{
 							if (DEBUG) printf("\n\nIN AC1:\n"); if (DEBUG) print_line(temp_code);
-							printf("\n\nLOOKING AT : %d\n\n", temp_code->t.assign_code->assigned);
+							if (DEBUG) printf("\n\nLOOKING AT : %d\n\n", temp_code->t.assign_code->assigned);
 							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
 							{
 								change_value_for_constant_var(bb->cvt,
@@ -1650,7 +1719,7 @@ void populate_value_numbers()
 						else if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->v1)) != NO_VALUE_NUMBER)
 						{
 							if (DEBUG) printf("\n\nIN AC3:\n"); if (DEBUG) print_line(temp_code);
-							printf("IN VN3: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
+							if (DEBUG) printf("IN VN3: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
 							add_constant_variable(bb->cvt,
 								temp_code->t.assign_code->assigned,
 								val_num);
@@ -1659,7 +1728,7 @@ void populate_value_numbers()
 						else
 						{
 							if (DEBUG) printf("\n\nIN AC4:\n"); if (DEBUG) print_line(temp_code);
-							printf("IN VN4: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
+							if (DEBUG) printf("IN VN4: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
 							add_new_variable(bb->vt,
 								temp_code->t.assign_code->v1);
 							// b now has a value_number, give it to a
