@@ -1,0 +1,19 @@
+Work distribution:
+Travis: 3 address code, value numbering, labels, goto statements
+George: Basic blocks, cfg, labels, goto statements, extendded basic blocks, global redundancy elimination, extended value numbering.
+
+
+Tests for labels: 4.p 10.p 11.p
+Tests for global redundancy : 12.p
+nested ifs: 13.p
+if: 2.p
+while: 3.p
+
+ENABLE #DEFINE DEBUG 1 in shared.h for many extra outputs
+
+To compile: make clean; make
+To run: ./opc < test.p
+
+ASU 2014. CSE 440
+Georgii Tkachuk
+Travis Seville
