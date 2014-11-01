@@ -21,6 +21,7 @@ void print_ebb_list();
 void print_children(struct basic_block_t *bb);
 void print_parents(struct basic_block_t *bb);
 void print_program();
+void print_main();
 
 //value numbers 
 void populate_value_numbers();
@@ -45,5 +46,7 @@ struct basic_block_t *ebb_wl_pop();
 void ebb_wl_push(struct basic_block_t *bb);
 int exists_in_wl(struct basic_block_t *bb);
 int wl_empty();
+
+void transform_code();
 
 #endif

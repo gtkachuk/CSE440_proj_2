@@ -605,6 +605,15 @@ int wl_empty(){
 /****************************** PRINT FUNCTIONS ***********/
 void print_main()
 {
+  int i;
+  for(i=0;i<bb_idx;i++)
+  {
+    printf("~~ BASIC BLOCK %d: ~~\n", i);
+    variable_table_print(bb_list[i]->vt);
+    variable_table_print(bb_list[i]->cvt);
+    expression_table_print(bb_list[i]->et);
+  }
+
   label_table_print();
   print_program();
 }
@@ -1098,6 +1107,7 @@ void extended_value_numbering()
     //recursive function 
     ebb_value_numbering(ebb_roots[i]);
   }
+  transform_code();
 }
 
 void ebb_value_numbering(struct basic_block_t *bb)
@@ -1774,6 +1784,26 @@ void populate_value_numbers()
 			}
 		}
 	}
+  transform_code();
+}
+
+/*this has to happen after value numbering*/
+void transform_code()
+{
+
+  //print_global_variable_table();
+  int i;
+  for(i=0;i<bb_idx;i++)
+  {
+
+    struct code_t *code = bb_list[i]->entry;
+    while(code != bb_list[i]->exit->next)
+    {
+      
+      code = code->next;
+    }
+
+  }
 }
 
 
