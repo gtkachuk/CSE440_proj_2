@@ -213,8 +213,8 @@ void optimize(struct program_t *p)
     populate_not_expr_kill(bb_list[i]);
   }
   populate_avail_in();
-  /*gre code end*/
   global_redundancy_transformation();
+  /*gre code end*/
   printf("----AFTER GLOBAL REDUNDANCY ELIMINATION-----\n");
   print_main();
   
@@ -605,6 +605,7 @@ int wl_empty(){
 /****************************** PRINT FUNCTIONS ***********/
 void print_main()
 {
+  label_table_print();
   print_program();
 }
 void print_expr(struct expr_t *expr)
@@ -741,7 +742,7 @@ void print_program()
   int i;
   for(i=0;i<bb_idx;i++)
   {
-    printf("BASIC BLOCK %d\n", i);
+    printf("~~ BASIC BLOCK %d: ~~\n", i);
     struct code_t *code = bb_list[i]->entry;
     while(code != bb_list[i]->exit->next)
     {
@@ -993,7 +994,7 @@ void  global_redundancy_transformation()
             code = code->next;
             continue;
           }
-
+          
           //at this point it is global redundant expression
           //get a variable tj
           //search backward through all parents for the final evaluations of this expression (or we could save these positions in blocks)
@@ -1018,10 +1019,25 @@ void  global_redundancy_transformation()
     }
   }
 }
+
+int is_replaced(int idx, struct expr_t *expr)
+{
+  int i = get_index(expr);
+  return (get_expr_by_idx(i)->replaced >> idx) & 1;
+}
+
+void set_replaced(int idx, struct expr_t *expr)
+{
+  int i = get_index(expr);
+  get_expr_by_idx(i)->replaced = get_expr_by_idx(i)->replaced | ((unsigned long long)1 << idx);
+}
+
 void find_and_replace(struct basic_block_t *bb, struct expr_t *expr, struct variable_t *tj)
 {
   struct code_t *final = NULL;
   struct code_t *code = bb->entry;
+  if (is_replaced(bb->num, expr))
+    return;
   //find
   while(code != bb->exit->next)
   {
@@ -1058,6 +1074,7 @@ void find_and_replace(struct basic_block_t *bb, struct expr_t *expr, struct vari
     final->t.op_code->assigned = tj;
     final->t.op_code->v1 = expr->v1;
     final->t.op_code->v2 = expr->v2;
+    set_replaced(bb->num, expr);
   }
  
   //repeat for parents 

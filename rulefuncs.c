@@ -18,6 +18,7 @@ struct expr_t *new_expr()
   expr->v1 = NULL;
   expr->v2 = NULL;
   expr->op = -1;
+  expr->replaced = 0;
   return expr;
 }
 /* ----------------------------------------------------------------------- 
