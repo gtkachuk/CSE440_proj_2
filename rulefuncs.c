@@ -478,11 +478,6 @@ struct code_t* new_code()
   CHECK_MEM_ERROR(c)
 // default to op_code to handle the simple expressions that have to building code.
 c->type = T_OP_CODE;
-//  dont think these are necessary
-//  c->t.op_code = NULL;
-//  c->t.label_code = NULL;
-//  c->t.goto_code = NULL;
-//  c->t.if_code = NULL;
   c->next = NULL;
   return c;
 }

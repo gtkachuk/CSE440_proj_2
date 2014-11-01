@@ -492,6 +492,10 @@ struct expr_t {
   int op;
   struct variable_t *v1;
   struct variable_t *v2;
+  //is gre replacement done for this expression?
+  int replaced;
+  //the expression was renamed to this id
+  char *id;
 };
   
 

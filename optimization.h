@@ -29,5 +29,7 @@ void populate_value_numbers();
 //global redundancy
 int var_equal(struct variable_t *v1, struct variable_t *v2);
 int get_index(struct expr_t *expr);
+void find_and_replace(struct basic_block_t *bb, struct expr_t *expr, struct variable_t *tj);
+void  global_redundancy_transformation();
 
 #endif

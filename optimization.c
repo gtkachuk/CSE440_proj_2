@@ -178,6 +178,11 @@ void optimize(struct program_t *p)
   populate_avail_in();
   printf("-----------------PRINTING BB LIST---------------\n");
   print_bb_list();
+  printf("-----------------BEFORE GRE ---------------\n");
+  print_program();
+  global_redundancy_transformation();
+  printf("-----------------AFTER GRE ---------------\n");
+  print_program();
 
   
   temp_cl = temp_cl->next;
@@ -357,6 +362,7 @@ void process_code(struct statement_sequence_t *ss){
   }
 }
 
+/*make additional connections for code with labels*/
 void attach_labels(){
   int i;
   struct code_t *temp;
@@ -421,6 +427,7 @@ void build_cfg(){
   }
 }
 
+/*get rid of dead code blocks*/
 void remove_dangling()
 {
   int change = 1;
@@ -579,14 +586,14 @@ void print_ebb_list()
 
 void print_bb(struct basic_block_t* bb){
   printf("#######~~~BASIC BLOCK %d ~~~########\n", bb->num);
-  printf("Entry:\n");
+  printf("Entry:\t");
   print_line(bb->entry);
-  printf("Exit:\n");
+  printf("Exit:\t");
   print_line(bb->exit);
-  printf("Is root: %d\n", bb->ebb_root);
   printf("Incoming nodes: %d\n",bb->num_incoming);
   print_children(bb);
   print_parents(bb);
+  if (DEBUG) printf("GRE TABLES:\tDE: %llu KILL: %llu AVAIL: %llu\n", bb->de_map, bb->kill_map, bb->avail_map);
 }
 
 void print_children(struct basic_block_t *bb){
@@ -687,7 +694,23 @@ void print_line(struct code_t* code){
 
 void print_gre_sets(struct basic_block_t *bb)
 {
+  
 
+}
+
+void print_program()
+{
+  int i;
+  for(i=0;i<bb_idx;i++)
+  {
+    struct code_t *code = bb_list[i]->entry;
+    printf("BASIC BLOCK %d\n", i);
+    while(code != bb_list[0]->exit->next)
+    {
+      print_line(code);
+      code = code->next;
+    }
+  }
 }
 /************************** END PRINT FUNCTIONS ***********/
 
@@ -703,7 +726,7 @@ void find_all_expressions()
     //not sure what exit->next might point to
     while(code != NULL && code != bb->exit->next)
     {
-      print_line(code);
+      if (DEBUG) print_line(code);
       //2 address expression can only come in an OP_CODE
       if(code->type == T_OP_CODE)
       {
@@ -714,7 +737,7 @@ void find_all_expressions()
         if(get_index(expr) == -1)
         {
           all_expr[expr_idx++] = expr;
-          print_expr(expr);
+          if (DEBUG) print_expr(expr);
         }
       }
       code = code->next;
@@ -770,7 +793,6 @@ void populate_de_expr(struct basic_block_t *bb){
     }
     code = code->next;
   }
-  if (DEBUG) printf("BB_%d: DE: %llu", bb->num, bb->de_map);
 }
 
 //return the index of the expression in the 'all' table.
@@ -841,7 +863,6 @@ void populate_not_expr_kill(struct basic_block_t *bb)
     }
     code = code->next;
   }
-  if (DEBUG) printf("NOT KILL: %llu\n",  bb->kill_map);
 }
 
 void populate_avail_in()
@@ -850,10 +871,6 @@ void populate_avail_in()
   
   for(i=1;i<bb_idx;i++)
   {
-    for(j=0;j<expr_idx;j++)
-    {
-      bb_list[i]->avail_in[j] = all_expr[j];
-    }
     bb_list[i]->avail_map = 0xFFFFFFFFFFFFFFFF >> (64-expr_idx); //all expressions
   }
   
@@ -884,11 +901,10 @@ void populate_avail_in()
       if(old_map != bb_list[i]->avail_map)
         changed = 1;
 
-      printf("GRE:::: AVAIL MAP OF %d = %llu\n", i, bb_list[i]->avail_map);
 
       for (k=0;k<expr_idx;k++)
       {
-        if ((bb_list[i]->avail_map << k) > 0)
+        if ((bb_list[i]->avail_map & (1 << k)) > 0)
         {
           bb_list[i]->avail_in[bb_list[i]->avail_idx++] = all_expr[k];
         }
@@ -899,11 +915,460 @@ void populate_avail_in()
 
 
 
+void  global_redundancy_transformation()
+{
+  //for each block
+  int i,j,k;
+  for(i=0;i<bb_idx;i++)
+  {
+    struct code_t *code = bb_list[i]->entry;
+    while (code != bb_list[i]->exit)
+    {
+      //check every expression in the block. 
+      if(code->type == T_OP_CODE)
+      {
+        struct expr_t *expr = new_expr();
+        expr->v1 = code->t.op_code->v1;
+        expr->v2 = code->t.op_code->v2;
+        expr->op = code->t.op_code->op;
+        
+        //if expression is in the avail_in do the replacement algorithm
+        if((bb_list[i]->avail_map & (1 << get_index(expr)))>0)
+        {
+          //check if the expression is killed before this assignment
+          int killed = 0;
+          struct code_t *temp = bb_list[i]->entry;
+          while(temp != code)
+          {
+            if (temp->type == T_OP_CODE || temp->type == T_ASSIGN_CODE)
+            {
+              if (var_equal(temp->t.op_code->assigned, expr->v1) || var_equal(temp->t.op_code->assigned, expr->v2))
+                killed = 1;
+            }
+            temp = temp->next;
+          }
+          if (killed)
+          {
+            code = code->next;
+            continue;
+          }
+
+          //at this point it is global redundant expression
+          //get a variable tj
+          //search backward through all parents for the final evaluations of this expression (or we could save these positions in blocks)
+          struct basic_block_t *bb = bb_list[i];
+
+          //how do I get a new temp name
+          struct variable_t *tj = new_variable();
+          tj->id = nextTempId();
+          //find and replace in each parent
+          for(k=0;k<bb->num_incoming;k++) 
+            find_and_replace(bb->parents[k], expr, tj);
+
+          //replace code with simple assignment
+          struct code_t *new = code;
+          code->type = T_ASSIGN_CODE;
+          //this is redundant because of how memory is distributed in structs but just in case:
+          code->t.assign_code->assigned = code->t.op_code->assigned;
+          code->t.assign_code->v1 = tj;
+
+        }
+      }
+      code = code->next;
+    }
+  }
+}
+
+
+void find_and_replace(struct basic_block_t *bb, struct expr_t *expr, struct variable_t *tj)
+{
+  struct code_t *final = NULL;
+  struct code_t *code = bb->entry;
+  //find
+  while(code != bb->exit->next)
+  {
+    if(code->type == T_OP_CODE)
+    {
+      struct expr_t *temp = new_expr();
+      temp->v1 = code->t.op_code->v1;
+      temp->v2 = code->t.op_code->v2;
+      temp->op = code->t.op_code->op;
+      if(expr_equal(expr, temp))
+      {
+        final = code;
+      }
+    }
+    code = code->next;
+  }
+  if (final == NULL)
+  {
+
+  }
+  else {
+    //replace
+    struct code_t *next = final->next;
+    struct code_t *new = new_code();
+    //a = tj
+    new->type = T_ASSIGN_CODE;
+    new->t.op_code = new_op_code();
+    new->next = next;
+    new->t.assign_code->assigned = final->t.op_code->assigned;
+    new->t.assign_code->v1= tj;
+    //tj = x + y
+    final->type = T_OP_CODE;
+    final->next = new;
+    final->t.op_code->assigned = tj;
+    final->t.op_code->v1 = expr->v1;
+    final->t.op_code->v2 = expr->v2;
+  }
+ 
+  //repeat for parents 
+  int i;
+  for(i=0;i<bb->num_incoming;i++)
+  {
+    find_and_replace(bb->parents[i], expr, tj);
+  }
+}
+
+void value_numbering_with_gre()
+{
+
+  
+  
+  //for each avail in - add the vales not only to the local tables but also to the global one. For each OP that matches the avail in for this block - copy the global tables into the local ones on entry
+  int i;
+  
+	for (i = 0; i < MAX_BASIC_BLOCKS; i++)
+	{
+    //find the evaluations 
+		if (bb_list[i] != NULL)
+		{
+			struct basic_block_t * bb = bb_list[i];
+			struct code_t * temp_code = bb->entry;
+			while (temp_code != NULL)
+			{
+				int val_num = NO_VALUE_NUMBER;
+
+				switch (temp_code->type)
+				{
+					case (T_OP_CODE) :
+            
+
+						// a = 1 + 1
+						// this will also handle a = 1 * 0
+						if (temp_code->t.op_code->v1->type == CONSTANT_TYPE &&
+							temp_code->t.op_code->v2->type == CONSTANT_TYPE)
+						{
+							if (DEBUG) printf("\n\nIN OC0:\n"); if (DEBUG) print_line(temp_code);
+
+							int val1 = temp_code->t.op_code->v1->val.constant_value;
+							int val2 = temp_code->t.op_code->v2->val.constant_value;
+							int new_val;
+							switch (temp_code->t.op_code->op)
+							{
+								case PLUS:
+									new_val = val1 + val2;
+									break;
+								case STAR:
+									new_val = val1 * val2;
+									break;
+								case MINUS:
+									new_val = val1 - val2;
+									break;
+								case SLASH:
+									new_val = val1 / val2;
+									break;
+								case MOD:
+									new_val = val1 % val2;
+									break;
+							}
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								change_value_for_constant_var(bb->cvt,
+									temp_code->t.op_code->assigned,
+									new_val);
+							}
+							else
+							{
+								add_constant_variable(bb->cvt,
+									temp_code->t.op_code->assigned,
+									new_val);
+							}
+							// we have an a = 2
+							// so if a is in the the value_number table, remove the value_number
+							if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								delete_value_number_for_var(bb->vt, temp_code->t.op_code->assigned);
+							}
+						}
+
+						// have one constant, check for * 0 or + 0
+						else if (temp_code->t.op_code->v1->type == CONSTANT_TYPE ||
+								 temp_code->t.op_code->v2->type == CONSTANT_TYPE)
+						{
+							int val1 = temp_code->t.op_code->v1->val.constant_value;
+							int val2 = temp_code->t.op_code->v2->val.constant_value;
+							int new_val;
+							struct variable_t * var;
+							if (val1 == NO_VALUE_NUMBER) // v1 is the variable
+							{
+								new_val = val2;
+								var = temp_code->t.op_code->v1;
+							}
+							else
+							{
+								new_val = val1;
+								var = temp_code->t.op_code->v2;
+							}
+
+							if (new_val == 0)
+							{
+								switch (temp_code->t.op_code->op)
+								{
+									case PLUS: // add 0
+										if (DEBUG) printf("\n\nIN OC1:\n"); if (DEBUG) print_line(temp_code);
+										if ((val_num = value_number_for_var(bb->vt, var)) == NO_VALUE_NUMBER)
+										{
+											val_num = add_new_variable(bb->vt, var);
+										}
+										// b now has a value_number, give it to a
+										int assigned_val_num;
+										if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											// a has an entry already, update it
+											change_value_number_for_var(bb->vt, temp_code->t.op_code->assigned, val_num);
+										}
+										else
+										{
+											// a doesnt have an entry, add it
+											add_variable(bb->vt,
+												temp_code->t.op_code->assigned,
+												val_num);
+										}
+										//remove the assigned from the constant table if it is there.
+										if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
+										}
+										break;
+									case STAR: // multiply by 0
+										if (DEBUG) printf("\n\nIN OC2:\n"); if (DEBUG) print_line(temp_code);
+										if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											change_value_for_constant_var(bb->cvt,
+												temp_code->t.op_code->assigned,
+												0);
+										}
+										else
+										{
+											add_constant_variable(bb->cvt,
+												temp_code->t.op_code->assigned,
+												0);
+										}
+										// we have an a = 2
+										// so if a is in the the value_number table, remove the value_number
+										if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+										{
+											delete_value_number_for_var(bb->vt, temp_code->t.op_code->assigned);
+										}
+										break;
+								}
+							}
+							else
+							{
+								if (DEBUG) printf("\n\nIN OC3:\n"); if (DEBUG) print_line(temp_code);
+								if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									// a has an entry already, update it, make it different because we modified it
+									change_value_number_for_var(bb->vt, temp_code->t.op_code->assigned, bb->vt->current_index++);
+								}
+								else
+								{
+									// a doesnt have an entry, add it
+									add_variable(bb->vt,
+										temp_code->t.op_code->assigned,
+										var->val.value_number);
+								}
+							}
+						}
+						else
+						{
+							// no we only have 2 variables - expression fun time
+							int v1 = value_number_for_var(bb->vt, temp_code->t.op_code->v1);
+							if (v1 == NO_VALUE_NUMBER)
+							{
+								// create new value number
+								if (DEBUG) printf("\n\nIN OC4: \n"); if (DEBUG) print_line(temp_code); 
+								v1 = add_new_variable(bb->vt, temp_code->t.op_code->v1);
+								printf("\n\nLOOKING AT : %d %d\n\n", temp_code->t.op_code->v1, temp_code->t.op_code->v1->type);
+							}
+							int v2 = value_number_for_var(bb->vt, temp_code->t.op_code->v2);
+							if (v2 == NO_VALUE_NUMBER)
+							{
+								// create new value number
+								if (DEBUG) printf("\n\nIN OC5:\n"); if (DEBUG) print_line(temp_code); 
+								v2 = add_new_variable(bb->vt, temp_code->t.op_code->v2);
+							}
+							// a = b - c where b = c -> a = 0
+							if (v1 == v2 && temp_code->t.op_code->op == MINUS)
+							{
+								if (DEBUG) printf("\n\nIN OC6:\n"); if (DEBUG) print_line(temp_code);
+								if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									change_value_for_constant_var(bb->cvt,
+										temp_code->t.op_code->assigned,
+										0);
+								}
+								else
+								{
+									add_constant_variable(bb->cvt,
+										temp_code->t.op_code->assigned,
+										0);
+								}
+								if ((val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									delete_value_number_for_var(bb->vt, temp_code->t.op_code->assigned);
+								}
+							}
+							else
+							{
+								if (DEBUG) printf("\n\nIN OC7:\n"); if (DEBUG) print_line(temp_code);
+								// check if expression already exists
+								struct expression_value_number_t * e = new_expression_value_number();
+								e->v1 = v1;
+								e->v2 = v2;
+								e->op = temp_code->t.op_code->op;
+								if ((val_num = value_number_for_expression(bb->et, e)) == NO_VALUE_NUMBER)
+								{
+									//it doesn't, create it
+									val_num = add_new_expression(bb->et, e);
+								}
+								int assigned_val_num;
+								if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.op_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									// a has an entry already, update it
+									change_value_number_for_var(bb->vt, temp_code->t.op_code->assigned, val_num);
+								}
+								else
+								{
+									// a doesnt have an entry, add it
+									add_variable(bb->vt,
+										temp_code->t.op_code->assigned,
+										val_num);
+								}
+								//remove the assigned from the constant table if it is there.
+								if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+								{
+									delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
+								}
+							}
+						}
+						break;
+					case (T_GOTO_CODE) :
+						break;
+					case (T_IF_CODE) :
+						break;
+					case (T_WHILE_CODE) :
+						break;
+					case (T_ASSIGN_CODE) :
+						// assigning a constant to a variable, add it to the constant table for now
+						if (temp_code->t.assign_code->v1->type == CONSTANT_TYPE)
+						{
+							if (DEBUG) printf("\n\nIN AC1:\n"); if (DEBUG) print_line(temp_code);
+							printf("\n\nLOOKING AT : %d\n\n", temp_code->t.assign_code->assigned);
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								change_value_for_constant_var(bb->cvt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.constant_value);
+							}
+							else
+							{
+								add_constant_variable(bb->cvt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.constant_value);
+							}
+							// we have an a = 1
+							// so if a is in the the value_number table, remove the value_number
+							if ((val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != -1)
+							{
+								delete_value_number_for_var(bb->vt, temp_code->t.assign_code->assigned);
+							}
+						}
+						// we have an a = b situation
+						// b has a value_number, give it to a
+						else if ((val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->v1)) != NO_VALUE_NUMBER)
+						{
+							int assigned_val_num;
+							if (DEBUG) printf("\n\nIN AC2:\n"); if (DEBUG) print_line(temp_code);
+							if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								change_value_number_for_var(bb->vt, temp_code->t.assign_code->assigned, val_num);
+							}
+							else
+							{
+								add_variable(bb->vt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.value_number);
+							}
+							// remove a from the constant table if applicable
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
+							}
+						}
+						// for a = b and b is a constant, make a a constant with the same value
+						else if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->v1)) != NO_VALUE_NUMBER)
+						{
+							if (DEBUG) printf("\n\nIN AC3:\n"); if (DEBUG) print_line(temp_code);
+							printf("IN VN3: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
+							add_constant_variable(bb->cvt,
+								temp_code->t.assign_code->assigned,
+								val_num);
+						}
+						// a = b and b does not have a value number
+						else
+						{
+							if (DEBUG) printf("\n\nIN AC4:\n"); if (DEBUG) print_line(temp_code);
+							printf("IN VN4: %s %d\n", temp_code->t.assign_code->v1->id, temp_code->t.assign_code->v1->val.constant_value); 
+							add_new_variable(bb->vt,
+								temp_code->t.assign_code->v1);
+							// b now has a value_number, give it to a
+							int assigned_val_num;
+							if ((assigned_val_num = value_number_for_var(bb->vt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								// a has an entry already, update it
+								change_value_number_for_var(bb->vt, temp_code->t.assign_code->assigned, val_num);
+							}
+							else
+							{
+								// a doesnt have an entry, add it
+								add_variable(bb->vt,
+									temp_code->t.assign_code->assigned,
+									temp_code->t.assign_code->v1->val.value_number);
+							}
+							//remove the assigned from the constant table if it is there.
+							if ((val_num = value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned)) != NO_VALUE_NUMBER)
+							{
+								delete_value_for_constant_var(bb->cvt, temp_code->t.assign_code->assigned);
+							}
+						}
+						break;
+				}
+				temp_code = temp_code->next;
+			}
+		}
+	}
+
+}
+
 // populate the value_number table for the basic block as well as the constant_value_number_table
 // will perform constant folding at the same time
 void populate_value_numbers()
 {
 	int i;
+
+
 	for (i = 0; i < MAX_BASIC_BLOCKS; i++)
 	{
 		if (bb_list[i] != NULL)
